@@ -1,0 +1,181 @@
+Programmer's Text Editor (pterodactyl) or Piece Table Editor
+(though might use ropes instead?)
+
+chunk into ~1K blocks?
+
+[the]->[quick]->[brown]->[fox]->...
+
+cursor is zipper.  Knows position by char, and by indexes (e.g. of newlines,
+words, etc.)
+
+indexing done by lexer (which can then feed into highlighter)
+
+components:
+  - lexer
+  - highlighter
+
+movements
+  direction (f/b)
+  inner/outer position (could be delimiter)
+
+  e.g.
+    "foo bar^ baz"
+      /ba (forward and back)
+         bbBBFff
+      movement commands could go to:
+        begin B
+        end b
+        begin b
+        end F
+        begin f
+        end F
+      and can act on whole area bBFf
+
+    either:
+      "inner" would be "BF" area
+      "outer" would be "bBFf" area
+    OR
+      bBFf is calculated separately
+      e.g.   <foo><bar> ^ </foo></bar>
+                  BBBBBB F
+      (should movement F/B commands be calculated from this?)
+
+    defmulti dispatch?
+
+    It looks like Movement commands should be:
+      :: zipper -> zipper
+
+    But this would allow badly behaved movement commands to return malformed
+    zippers (e.g. behave destructively)
+
+    Options:
+      a) don't worry, just ask them nicely to be well behaved
+        (this is fine, but other options are quite interesting)
+      b) search with a fold of zipper movements, that returns true
+        at the correct zipper.
+        (this allows us to peek back/forth as required, but not change
+        anything).
+        But is it inefficient - e.g. if we can search more efficiently
+        by using the index etc.
+      c) communicate back to main function with a protocol
+        e.g. by returning something like
+          :next-piece   # discard this piece, giving me the zipper starting at
+                        # next piece
+          [5 2]         # inner at position 5, 2-long delimiter
+          nil           # couldn't complete movement
+        except that we might need to keep state, so would that have to be
+        passed back and forth between functions?
+      d) perhaps something like above, but the movement function accepts a
+         function for next-piece (that updates an atom with the zipper)
+         this allows the movement command to simply return the offset from
+         current @zipper, maintaining its own state
+          
+Current vim bindings.  
+  "!" means I think this is nonsense and may overwrite
+  "?" means I'm pondering if this is needed
+
+    lower                       upper
+a  append                      append to end
+b  back                        ?back (WORD)
+c  change                      c$
+d  delete                      d$
+e  !forward (end)              !forward (end) (WORD)
+f  find-in-line                like f, backwards
+g  !misc (mostly alternates)   ?goto line
+h  left                        !go to top (modulo scrolloff)
+i  insert                      insert at beginning
+j  down                        join
+k  up                          ?lookup keyword
+l  right                       !go to bottom (module scrolloff)
+m  mark                        !go to middle (modulo scrolloff)
+n  re-search                   re-search backwards
+o  open line                   open line above
+p  paste                       !paste before
+q  !macro                      !Ex mode
+r  replace char                replace mode
+s  !subs character             !synonym cc
+t  find-in-line-inner          like t, backwards
+u  undo                        !weird vi-undo
+v  visual mode                 linewise visual
+w  forward (beginning)         like w (WORD)
+x  delete char                 delete char backwards
+y  yank                        syn yy (but more sense y$)
+z  !misc (mostly zoom/folds)   !unused, but see ZZ
+  
+Notes:
+  - should the WORD (inc punctuation) movements be an option?
+  - e/E could move beginning/end of current word/selection instead
+    (like O in visual mode)
+  - t/f should find character anywhere, and n/N repeat that search, freeing
+        up ,/;
+     - or choose inner/outer as default, for example inner (t),
+       and then use {go}{outer}t e.g. gat or gif for the alternative
+  - U as "explore undo tree"?      
+  - g should become "goto THING"
+  - k could become various lookups (help, definition etc.)
+  - should i/a/o take text objects?
+      e.g. {with}{sentence}O (open newline before current sentence)
+      ... or should default way be {text object}{grow/shrink}{operation} instead of other way around?
+      ... which I guess is the visual-mode way of thinking about things, is
+      that what I want?
+      (ish, but I still want dd, D, C, d0, x)
+  - macro recording can be a function call or composite keystroke
+    (or alternatively q ok, and Q to call it)
+
+
+So new mappings:
+
+NORMAL
+[] by word (or token)
+() by sentence (or line)
+{} by para (or block)
+<>
+"'
+    lower                       upper
+a  shrink-sel       A grow-sel         ^a unwrap?
+b  buffer ...       B
+c  copy             C
+d  delete           D d$
+e  start-word/sel   E end-word/sel
+f  find-char        F ... backwards
+g  go ...           G go to line
+h  left             H
+i  insert           I insert after
+j  down             J join
+k  up               K
+l  right            L
+m  make ...         M mark
+  mt (make test) me (eval) etc.
+n  re-search        N re-search backwards                 ^N next qbe
+o  open line        O open line above
+  (or are these just sli / slI ?)
+p  push (split)     P push (but follow onto the new line) ^P prev qbe
+q  query ...        Q insert template
+  q8, qd (jump to definition)
+r  replace char/sel R replace mode                        ^R Redo
+s  select (visual)  S s$
+t  transform ...    T toggle case
+  t- t_ tc (snake kebab camel), tu tl (case), tr (reverse)
+u  undo             U gundo-a-like
+v  paste            V paste special...
+w  window/buff ...  W
+x  delete char/sel  X delete char backwards
+y  yank mode        Y
+z  zoom ...         Z
+  e.g. view settings?
+. repeat    ^. magic repeat
+0 sle
+$ slE
+
+TEXT OBJECTS
+l   line
+[]w word
+()s sentence
+{}p paragraph/block
+<>t tag
+"d quote
+'q
+`b
+
+insert mode
+^n/^p auto-complete
