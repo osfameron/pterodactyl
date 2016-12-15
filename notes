@@ -1,5 +1,9 @@
-Programmer's Text Editor (pterodactyl) or Piece Table Editor
-(though might use ropes instead?)
+pterodactyl - Programmer's Text Editor for Winged Dinosaurs
+
+Possibly "PTE" for Piece Table Editor
+  (though the final data-structure may be tree based)
+
+Uses a zipper or finger structure, which we'll call a "Dactyl"
 
 Command:
   pterodactyl   (eeek!)
@@ -140,42 +144,49 @@ NORMAL
 <>
 "'
     lower                       upper
-a  shrink-sel       A grow-sel         ^a unwrap?
+a  shrink-sel       A grow-sel         ^a unwrap?         ^A all-text menu
 b  buffer ...       B ?
-c  copy             C ?
+c  copy             C ?                                   ^C copy
 d  ? (just dd and D?)
 e  start-word/sel   E end-word/sel
-f  find-char        F ... backwards
-g  go ...           G go to line
-h  left             H ?
+f  find-char        F find-char backwards                 ^F find ...
+g  go ...           G go to line                          ^G go menu
+  gd (go definition) 
+h  left             H ?                                   ^H help menu
 i  insert           I insert after
 j  down             J join
 k  up               K ?
 l  right            L ?
-m  make ...         M mark
+m  make ...         M mark                                ^M make menu
   mt (make test) me (eval) etc.
 n  re-search        N re-search backwards                 ^N next qbe
 o  open line        O open line above
-  (or are these just sli / slI ?)
+  (or are these just sli / SI ?)
 p  push (split)     P push (but follow onto the new line) ^P prev qbe
-q  query ...        Q insert template
+q  query ...        Q insert template                     ^Q template menu
   q8, qd (jump to definition)
 r  replace char/sel R replace mode                        ^R Redo
-s  select (visual)  S s$
-t  transform ...    T toggle case
+s  select (visual)  S s$                                  ^S save
+t  transform ...    T toggle case                         ^T open file
   t- t_ tc (snake kebab camel), tu tl (case), tr (reverse), tf (format)
-u  undo             U gundo-a-like
-v  paste            V paste special...
-w  window/buff ...  W ?
-x  delete char/sel  X delete char backwards
-y  yank mode        Y ?
-z  zoom ...         Z ?
+u  undo             U ? (redo?)                           ^U gundo menu
+v  paste            V paste special...                    ^V paste
+w  window/buff ...  W ?                                   ^W close buffer
+x  delete char/sel  X delete char backwards               ^X cut
+y  yank mode        Y ?                                   ^Y redo
+z  zoom ...         Z ?                                   ^Z undo
   e.g. view settings?
 . repeat    ^. magic repeat
-0 sle
-$ slE
+| sse<ESC>
+0 sle<ESC>
+$ slE<ESC>
+
+(file management is more destructive, so is managed with ^ commands)
+in general most commands should be lower-case without modifiers
+only ^ mappings should open a menu
 
 TEXT OBJECTS
+i/a compatibility with vim (though can be overridden with e/E)
 l   line
 []w word
 ()s sentence
