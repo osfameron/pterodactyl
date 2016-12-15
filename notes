@@ -1,6 +1,14 @@
 Programmer's Text Editor (pterodactyl) or Piece Table Editor
 (though might use ropes instead?)
 
+Command:
+  pterodactyl   (eeek!)
+  ptero
+  pt            (but platinum surfer)
+  pd
+  pc            (for pterodactyl client)
+  wi            (short for "wingfinger", pleasant resonance with vi)
+
 chunk into ~1K blocks?
 
 [the]->[quick]->[brown]->[fox]->...
@@ -133,17 +141,17 @@ NORMAL
 "'
     lower                       upper
 a  shrink-sel       A grow-sel         ^a unwrap?
-b  buffer ...       B
-c  copy             C
-d  delete           D d$
+b  buffer ...       B ?
+c  copy             C ?
+d  ? (just dd and D?)
 e  start-word/sel   E end-word/sel
 f  find-char        F ... backwards
 g  go ...           G go to line
-h  left             H
+h  left             H ?
 i  insert           I insert after
 j  down             J join
-k  up               K
-l  right            L
+k  up               K ?
+l  right            L ?
 m  make ...         M mark
   mt (make test) me (eval) etc.
 n  re-search        N re-search backwards                 ^N next qbe
@@ -155,13 +163,13 @@ q  query ...        Q insert template
 r  replace char/sel R replace mode                        ^R Redo
 s  select (visual)  S s$
 t  transform ...    T toggle case
-  t- t_ tc (snake kebab camel), tu tl (case), tr (reverse)
+  t- t_ tc (snake kebab camel), tu tl (case), tr (reverse), tf (format)
 u  undo             U gundo-a-like
 v  paste            V paste special...
-w  window/buff ...  W
+w  window/buff ...  W ?
 x  delete char/sel  X delete char backwards
-y  yank mode        Y
-z  zoom ...         Z
+y  yank mode        Y ?
+z  zoom ...         Z ?
   e.g. view settings?
 . repeat    ^. magic repeat
 0 sle
