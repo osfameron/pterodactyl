@@ -176,7 +176,8 @@ x  delete char/sel  X delete char backwards               ^X cut
 y  yank mode        Y ?                                   ^Y redo
 z  zoom ...         Z ?                                   ^Z undo
   e.g. view settings?
-. repeat    ^. magic repeat
+. repeat    ^. magic repeat  
+, repeat move  ; repeat inverse move
 | sse<ESC>
 0 sle<ESC>
 $ slE<ESC>
@@ -198,3 +199,73 @@ l   line
 
 insert mode
 ^n/^p auto-complete
+
+PLUGIN notes
+
+From emacs:
+  - functions vs. "interactive" ones
+  - interactive done as argument to 'defun' macro.  
+  - options like "p" get the prefix argument (like Vim count?)
+  - point, mark, mark-ring, exchange-point-and-mark, save-excursion
+  - transient-mark-mode "makes Emacs behave sanely by using visible regions
+    like other editors."
+  - describe-function
+  - major / minor modes, hooks
+    - major seem like ftplugins
+    - minor like generic plugins, but can be turned on/off
+    - hooks allow e.g. "slime" (major) to turn on "eldoc" (minor)
+    - see https://nathantypanski.com/blog/2014-08-03-a-vim-like-emacs-config.html
+      for an example of getting mappings for a mode (IBuffer) to make sense
+      with an alternative input strategy (Evil)
+      can we do better than this?
+      (e.g. keymapping -> generic intermediate layer -> plugin functionality)
+  - package.el, cask, pallet (tools like Vundle?)
+  - window/frame naming more logical (but now backwards from how everyone else
+    does it)
+  - ido ("interactively do things" like ctrl-p, helm etc.)
+  - line numbers
+  - scratch buffers
+  - repls (and terminal emulators) within emacs
+  - prompts, and how to disable them
+  - echo area
+  - melpa (use-package)
+    :ensure  (auto fetches)
+    :mode (defers loading till file extension found)
+    :commands (define, don't run)
+    :init (run immediately)
+    :config (run after package loaded)
+  - (visual-line-mode 1) "gives you sane word wrapping in almost all cases."
+
+From vim
+  - spell
+  - omnicomplete
+  - buffer-local mappings
+  - autocommands, events
+  - status lines
+  - plugin layout
+    - colors/
+    - plugin/ (load once, on plugin load)
+    - after/  (like plugin, but after internal files)
+    - autoload/ (for lazy loading?)
+    - ftdetect/
+    - ftplugin/ (handles buffers of given filetype)
+    - indent/  (as above, but for indentation)
+    - compiler/ ???
+    - doc/
+    - syntax/
+    - folding.vim
+  - changing movement commands for filetypes (with nnoremap...)
+  - calling external commands, e.g. filters
+  - scratch splits
+  - buffer types:
+    nofile
+    nowrite
+    acwrite (autocommand write)
+    quickfix
+    help
+    directory
+    scratch
+    unlisted
+    (bufhidden, swapfile)
+  - distribution  (clojars / github?)
+  - <D-...> mappings, e.g. <D-V>
