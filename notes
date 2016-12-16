@@ -4,6 +4,8 @@ Possibly "PTE" for Piece Table Editor
   (though the final data-structure may be tree based)
 
 Uses a zipper or finger structure, which we'll call a "Dactyl"
+(Currently the code structure called Dactyl is very low level.
+Perhaps that should be "Phalange"? ;-)
 
 Command:
   pterodactyl   (eeek!)
@@ -81,6 +83,24 @@ movements
          function for next-piece (that updates an atom with the zipper)
          this allows the movement command to simply return the offset from
          current @zipper, maintaining its own state
+      e) encapsulate the zipper in a function which takes e.g. movement or
+         update commands as parameters with keywords.
+         (defn my-movement [dactyl]
+            (dactyl :right 5)
+            (dactyl :search :backwards ">"))
+            ; TODO provide some combinator macro to apply dactyl repeatedly to 
+            ; new args?  e.g. syntactic sugar for reduce
+         (defn my-movement [dactyl]
+            (=> dactyl 
+              (:right 5)
+              (:search :backwards ">")))
+          The dactyl function passed to movement commands will be read-only,
+          while others might have e.g.
+            (=> dactyl
+              (:search "foo")
+              (:select)
+              (:replace "bar"))
+
           
 Current vim bindings.  
   "!" means I think this is nonsense and may overwrite
