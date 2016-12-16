@@ -1,6 +1,6 @@
-(defrecord Piece [table-index from to])
-(defn make-piece [table-index string]
-  (Piece. table-index 0 (count string)))
+(defrecord Piece [string from to])
+(defn make-piece [string]
+  (Piece. string 0 (count string)))
 
 (defn piece-length [piece] (- (:to piece) (:from piece)))
 
@@ -18,11 +18,10 @@
 (defn make-table [strings]
   (Table. strings 
           (into '() (reverse 
-                      (map make-piece (range) strings)))))
+                      (map make-piece strings)))))
 
 (defn show-piece [strings piece]
-  (let [{:keys [table-index from to]} piece
-        string (nth strings table-index)]
+  (let [{:keys [string from to]} piece]
       (subs string from to)))
 
 (defn show-table [table]
@@ -44,7 +43,7 @@
   (let [piece (curr dactyl)
         {:keys [from to]} piece
         {:keys [strings curr-pos]} dactyl]
-    (subs (nth strings (:table-index piece)) from to)))
+    (subs string from to)))
 
 (defn curr-text-post [dactyl]
   (subs (curr-text dactyl) (:curr-pos dactyl)))
@@ -162,7 +161,7 @@
           (#(println (str)
              (-> % (:curr-pos))
              " / "
-             (-> % (curr) (:table-index))
+             (-> % (curr) (:string))
              " / "
              (-> % (dactyl-pos))
              " / "
@@ -172,7 +171,7 @@
           (#(println (str)
              (-> % (:curr-pos))
              " / "
-             (-> % (curr) (:table-index))
+             (-> % (curr) (:string))
              " / "
              (-> % (dactyl-pos))
              " / "
