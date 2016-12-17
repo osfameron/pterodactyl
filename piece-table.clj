@@ -32,17 +32,19 @@
 ; zipper class, a finger onto the data
 ; (Clojure has zippers, but they seem to be only on hierarchical data
 ; structures?)
-(defrecord Dactyl [strings back pieces acc-pos curr-pos])
+(defrecord Dactyl [back pieces acc-pos curr-pos])
+(def empty-dactyl
+  (Dactyl. '() '() 0 0))
 (defn make-dactyl [table]
-  (Dactyl. (:strings table) '() (:pieces table) 0 0))
+  (assoc empty-dactyl :pieces table))
 
 (defn curr [dactyl]
   (first (:pieces dactyl)))
 
 (defn curr-text [dactyl]
   (let [piece (curr dactyl)
-        {:keys [from to]} piece
-        {:keys [strings curr-pos]} dactyl]
+        {:keys [string from to]} piece
+        {:keys [curr-pos]} dactyl]
     (subs string from to)))
 
 (defn curr-text-post [dactyl]
@@ -98,6 +100,9 @@
             (assoc dactyl :bounce :right, :curr-pos (piece-length (curr dactyl)))
             (recur next (- count avail)))))))
 
+(defn nudge-right [dactyl]
+  (traverse-right dactyl 1))
+
 (defn traverse-left [dactyl count]
   (let [dactyl (dissoc dactyl :bounce) 
         avail (:curr-pos dactyl)]
@@ -136,7 +141,7 @@
                :back (conj back pre)
                :pieces (conj (rest pieces) post)
                :curr-pos 0
-               :acc-pos (+ acc-pos (count pre)))))))
+               :acc-pos (dactyl-pos dactyl))))))
 
 (defn delete-between [d1 d2]
   (if (> (dactyl-pos d1) (dactyl-pos d2))
@@ -144,12 +149,88 @@
     (let [d1' (split-dactyl d1)
           d2' (split-dactyl d2)]
       (assoc d1' :pieces (:pieces d2')))))
-     
+
+(defn -pieces-between 
+  "Get the pieces between two dactyls.  These must be in order, and split"
+  [left right acc]
+  (let [lpos (dactyl-pos left)
+        piece (curr left)
+        rpos (dactyl-pos right)
+        avail (curr-pos-post left)
+        remaining (- rpos lpos)]
+     (println (str "lpos: " lpos " rpos: " rpos " avail: " avail " rem: " remaining))
+     (cond
+       (nil? left)
+       ("EEEEK!")
+
+       (= lpos rpos)
+       acc
+       
+       (<= remaining avail)
+       (conj acc (assoc piece :to (+ (:from piece) remaining))) 
+  
+       :else
+          (recur (traverse-forward left) right (conj acc piece)))))
+  
+(defn region-between [d1 d2]
+  (let [d1pos (dactyl-pos d1)
+        d2pos (dactyl-pos d2)]
+    (cond
+      (= d1pos d2pos)
+      [d1 empty-dactyl]
+
+      (> d1pos d2pos)
+      (region-between d2 d1)
+
+      :else
+        (let [d1' (split-dactyl d1)
+              d2' (split-dactyl d2)
+              outer (assoc d1' 
+                           :pieces (:pieces d2'))
+              inner (assoc d1' 
+                           :back '() 
+                           :acc-pos 0 
+                           :curr-pos 0 
+                           :pieces (-pieces-between d1' d2' []))]
+         [outer inner]))))
+
+;;;; dactyl function sketch
+; TODO handle docstring (& other parameters?)
+(defmacro defmove [fname body]
+  `(defn ~(symbol (name fname)) 
+     [~(symbol "&dactyl")]
+     eval ~body))
+
+(defmacro => [& forms]
+  `(map (partial apply ~(symbol "&dactyl")) '(~@forms)))
+
+(defmove noop
+  (=> (:right)
+      (:left)))
+
+; example call
+(let [dactyl-function println]
+  (noop dactyl-function))
+
+(comment
+  (defuser my-function [param]
+    ; &dactyl and &count are passed in implicitly
+    ; e.g. from repl (call my-function "hello")
+    ; would actually call (my-function dactyl "hello")
+    ; and if bound to a keystroke might call (my-function dactyl count "hello")
+    (=> (:right &count)
+        (:insert param))))
+
 ; next steps
+  ; rename Dactyl -> Phalange
+  ; test / spec
+  ; end-of-buffer handling
+  ; unzip & print whole buffer
   ; insert
   ; text-before?
   ; go to
-  ; unzip & print whole buffer
+  ; go to line
+  ; go up/down
 
 (comment
   (def table (make-table ["hello " "world"]))
@@ -159,23 +240,27 @@
   (doseq [i (range 12)] 
     (-> d (traverse-right i)
           (#(println (str)
-             (-> % (:curr-pos))
-             " / "
-             (-> % (curr) (:string))
-             " / "
              (-> % (dactyl-pos))
-             " / "
-             (-> % (text-after 100)))))) 
+             "\t/ "
+             (-> % (:curr-pos))
+             "\t/ "
+             (-> % (curr) (:string))
+             "\t/ "
+             "<"
+             (-> % (text-after 100)) 
+             ">"))))
   (doseq [i (range 12)] 
     (-> (traverse-right d 11) (traverse-left i)
           (#(println (str)
-             (-> % (:curr-pos))
-             " / "
-             (-> % (curr) (:string))
-             " / "
              (-> % (dactyl-pos))
-             " / "
-             (-> % (text-after 100)))))) 
+             "\t/ "
+             (-> % (:curr-pos))
+             "\t/ "
+             (-> % (curr) (:string))
+             "\t/ "
+             "<"
+             (-> % (text-after 100)) 
+             ">"))))
 
   (-> d (traverse-right 6) (text-after 100))
   (-> d (traverse-right 3) (split-dactyl) (:curr-pos))
@@ -189,8 +274,20 @@
       (traverse-left 100)
       (text-after 100))
 
+  (-> d (traverse-right 10) 
+      (#(let [d1 %
+              d2 (traverse-left d1 4)
+              [outer inner] (region-between d1 d2)]
+         (println (-> outer (traverse-left 100) (text-after 100)))
+         (println (-> inner (traverse-left 100) (text-after 100))))))
+
+  (-> d (traverse-right 8) 
+      (#(let [d1 %
+              d2 (traverse-left d1 4)]
+          (-pieces-between (split-dactyl d2) (split-dactyl d1) []))))
+
   (-> d (traverse-right 6) (text-after 100))
-  (-> d (traverse-right 7))
+  (-> d (traverse-right 8) (traverse-left 4) (split-dactyl) (#(println (dactyl-pos %))))
   (-> d (traverse-right 7) (traverse-left 2) (text-after 100))
   (-> d (traverse-right 7) (traverse-left 2))
   (traverse-forward (traverse-right d 1))

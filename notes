@@ -3,10 +3,6 @@ pterodactyl - Programmer's Text Editor for Winged Dinosaurs
 Possibly "PTE" for Piece Table Editor
   (though the final data-structure may be tree based)
 
-Uses a zipper or finger structure, which we'll call a "Dactyl"
-(Currently the code structure called Dactyl is very low level.
-Perhaps that should be "Phalange"? ;-)
-
 Command:
   pterodactyl   (eeek!)
   ptero
@@ -289,3 +285,52 @@ From vim
     (bufhidden, swapfile)
   - distribution  (clojars / github?)
   - <D-...> mappings, e.g. <D-V>
+
+Dactyl
+======
+Uses a zipper or finger structure, which we'll call a "Dactyl"
+(Currently the code structure called Dactyl is very low level,
+in that you have to directly wrangle the data-structures.
+Perhaps that should be "Phalange"? ;-)
+
+A dactyl instead could be that encapsulated function that has
+a defined public interface.
+
+Phalange
+========
+
+# Accumulator functions:
+  Right now, Dactyl has:
+      - acc-pos.  accumulated character position at beginning of current piece
+      - curr-pos.  offset within current piece
+
+  But also needs:
+      - line number at beginning of current piece
+      - number of words at beginning of current piece
+
+  Piece then needs:
+      - number of chars (which it has, calculably)
+      - number of lines
+      - number of words
+
+  This could be done with generic accumulator functions.
+  These could also be added by plugins.
+
+Types of function
+=================
+
+NB: implicit parameters may be a Really Bad Idea, will reconsider
+(but fun to play with macros and ideas for now)
+
+ - movements (def-movement) implicit &dactyl
+  - call with (move ...)
+    (hmm, movements get dactyl, then call (&dactyl :movement) presumably
+     there is a limited core set of movements that the others bootstrap
+     off)
+ - text actions (def-action) implicit &dactyl, &count
+  - call with (call ...)
+ - accumulator (def-accumulator) "string" -> {:thing count}
+
+Callbacks:
+ - should-run-plugin  (takes plugin state + new buffer details -> bool)
+ - 
