@@ -334,3 +334,233 @@ NB: implicit parameters may be a Really Bad Idea, will reconsider
 Callbacks:
  - should-run-plugin  (takes plugin state + new buffer details -> bool)
  - 
+
+Notes from http://www.finseth.com/craft/
+========================================
+- very confused, needs editing.  old fashioned, examples in C
+- 2d editors
+- reading/writing non-standard filetypes / different platforms
+(assume host language does this?)
+- RTL etc.
+- hyphenation algorithms
+- buffer:  read / write / insert
+- region is just space between point and mark
+(simple, but how does this work with e.g. line-based regions?)
+- distinction "normal" vs "fixed" marks important?
+- "Point is the current location where editing operations are taking place. It is defined in terms of a private data type, since different implementations will use different representations. As it turns out, there is never a need for any code outside of the sub-editor to ever be aware of the representation of this data type."
+- Buffer attributes:
+  (a lot of these would actually be on the dactyl rather than the buffer)
+  Next-chain-entry (e.g. next buffer)
+  Buffer-name
+  Point
+  Cur-line
+  Num-chars
+  Mark-list
+  Contents
+  File-name
+  File-time
+  Is-modified
+  Mode stuff (huh, this is supposed to be a basic editor)
+  Add-proc (entry point to recreated command tables for this buffer?)
+
+- section 6.3 all the vital commands for "Sub-editor"
+  World-init (set up everything on editor invocation)
+  World-fini (terminate that)
+
+  World-save (save all editor state)
+  World-load  load " - he admits this is probably useless
+
+  buffer-create
+  buffer-clear
+  buffer-delete
+  buffer-set (choose which buffer we're editing)
+  buffer-set/get-name
+
+  point-set/get (location)
+  point-move
+  point-get-line
+  buffer-start (move to 0)
+  buffer-end (move to end)
+  compare-location
+  location-to-count / vv
+
+  mark-create
+  mark-delete
+  mark-to-point - moves a mark to insertion point
+  point-to-mark - moves point to a mark
+  mark-get (gets location of mark.  not useful though)
+  mark-set (moves mark to specified location)
+  is-point-at/before/after-mark?
+  swap-point-and-mark
+
+  get-char (after point, or nil if at end)
+  get string (count) after point
+  get-num-chars (length of buffer)
+  get-num-lines
+  get/set-file-name
+  buffer-read
+  buffer-insert
+  set/get-modified
+
+  mode-append
+  mode-delete
+  mode-invoke
+
+  insert-char/string
+  replace-char/string
+  delete-forwards/backwards
+  delete-region (between point and mark)
+  copy-region
+
+  search-forward  (leaves point at *end* result, to allow next search to work)
+  search backwards (point at *beginning* of result)
+    (search is noop if not found)
+  is-a-match (at point)
+  find-first-(not-)in-forward/backward e.g. [0123456789], 
+    (unlike search, find-first- go to end of buffer if not found)
+    (these are used to do e.g. "move to start of next line"
+     "move to start of next word" etc.)
+
+  get-column (takes into account tabs, variable width characters etc.)
+  set-column (e.g. move to that column in line, rounding on tab to either closest or next highest, as appropriate)
+
+6.4 implementation techniques
+Lots of low-level memory management stuffs we don't care about.
+
+6.9 "The other methods involve tracking small chunks of characters or even
+individual characters. While they are in principle do-able, their small object
+size serves to increase the amount of memory and CPU overhead, unfortunately
+without offering any compensating advantages. Thus, they remain largely
+unused."
+(I think he's talking about piece tables etc.)
+
+7.2.1 Editor Procedures
+  windows-init/fini/save/load
+  redisplay (incremental refresh window - interruptable)
+  recenter/set-pref-pct (move pointer to line in centre/X%... e.g. like zz but customizable?)
+  get-point-row/col - coord within window
+  window-create/destroy (create is a split, showing same data)
+  window-grow (e.g. within frame)
+  get-window-top/bot-line (line within *screen*)
+  get-window-top/bot (position within *buffer*)
+
+7.2.2 display independent procedures
+e.g. mostly what Curses or http://sjl.bitbucket.org/clojure-lanterna/
+will do
+  (various key- methods mostly uninteresting)
+  screen-rows/cols (e.g. the window frame available)
+  screen-attributes (what's supported: bold, reverse, etc.)
+  set-cursor (e.g. the display of point within screen)
+  various put/get of chars/strings/attributes/info
+  beep
+  clear line/screen/to-eol/to-eos
+  insert/delete/scroll lines etc.
+
+Other bits
+  Status line
+  Horizontal scrolling vs line wrap
+  word wrap 
+    (requires lookahead in redisplay algorithm)
+    + breaking rules
+    + ruler lines (really?)
+    + you have to track where the word wrap occurs, for wysiwyg editing
+    "If you do implement word wrap, you may as well go the whole way and support flushing right, centering, and justification of text during display."
+
+  Tab stops (regular / set list)
+  non-trad tabs: right tabs, decimal tabs, centering tabs
+
+  Non-printing control characters
+  - choose notation (octal, "caret notation", unicode char name, etc.)
+  - "Once you have tabs and control characters down, displaying text in a proportionally spaced font is not too difficult. "
+  
+Breaking between redraw of lines:
+"Lest there be any doubt: between-line breakout is a very important feature and should only be left out of the very simplest implementations or those implementations that can complete even the most complex redisplay in under 100 msec."
+
+Multiple Windows?
+  - no support
+  - horizontal only
+  - hor/vert, tiled
+  - arbitrary, tiled (e.g. in windowing system)
+
+if multiple, changes should be reflected immediately in other windows
+
+7.4
+converting sub-editor changes to redisplay operations can be subtle
+
+"The framer is that part of the redisplay code that decides what part of the buffer will appear in the window."
+2 marks: top/bottom of window
+If point still in that range, don't move window
+
+Sub-Editor should advise if modification or movement attempted,
+possibly in a space constrained by a window mark
+  - possibly not just top/bottom of window, as may interact with line-wrap
+    and horiz scrolling
+   (Can't sub editor just advise of what positions have been changed, and
+    window can decide whether to redraw based on that?)
+
+7.4.4 advanced algorithm looks overcomplicated - why not just diff the visible
+portion, rather than complecting with unique identifiers?
+(Though in fact I guess most of this is handled by
+
+NB: 8 combinations of directions (e.g. if not L-R T-B western bias)
+
+How would outlining affect redisplay?
+
+Unicode: Ligatures & contextual forms, how affect cursor motion/redisplay?
+
+Chapter 8.
+  - 2nd level dispatch (this may be easier originally than arbitrary keybindings)
+  - accept an argument
+  - vi-style vs Emacs "universal argument" command (see 8.3.1)
+
+8.2 error handling/ recovery/exit
+
+8.3 arguments
+  - numeric prefix
+  - explains universal argument (but I don't really get what it's for)
+  - String args (suffix)
+    - should have a prompt
+    - key to submit/abort should be clear
+    - only perform action after all input entered
+      (what about incremental search? ok, ESC returns to original location,
+      so state not inconsistent)
+    - default value
+    - as buffers (allowing multitasking, context switch)
+      also e.g. file-completion or incremental search
+  - Positional arguments
+    - e.g. position of pointer or region is itself an argument.
+
+8.4 remapping
+e.g. different styles:
+  - insert char
+  - insert char with save
+  - insert char, filling hard wraps
+  - overwrite instead of inserting char
+
+overlaying definitions.
+
+8.5 types of mode
+
+ - implicit (like Adventure text adventure... seems like odd example/word?)
+ - explicit (auto-save, auto-fill, as above, e.g. alternate command-sets)
+ - automatic (by filetype)
+
+Modes are per-buffer, and switch as you change buffer
+
+8.6
+  - Kill ring
+    - successive deletions should stack
+  - Undo
+    - operates on a user-command basis, not sub-editor operation
+    - consecutive insertions as single command
+    - limit of undo (perhaps not issue with immutable structure?)
+    - undoing state outside of the sub-editor?
+    - undoing movements (e.g. jumplist)
+
+8.7 Macros
+  - again
+  - key recorder
+  - scripting language
+  - NB: because macro operates without screen display, reinforces the separation of concerns
+
+9.10 command  summary (todo note)
