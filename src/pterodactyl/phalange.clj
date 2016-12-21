@@ -1,18 +1,33 @@
+(ns pterodactyl.phalange
+  (:require [clojure.spec :as s])
+  (:gen-class))
+
 (defrecord Piece [string from to])
 (defn make-piece [string]
+  {:pre [(s/valid? string? string)]}
   (Piece. string 0 (count string)))
 
-(defn piece-length [piece] (- (:to piece) (:from piece)))
+(defn piece-length [piece]
+  {:pre [(s/valid? #(instance? Piece %) piece)]}
+  (- (:to piece) (:from piece)))
+
+(defn piece-string [piece]
+  {:pre [(s/valid? #(instance? Piece %) piece)]}
+  (let [{:keys [:string :from :to]} piece]
+    (subs string from to)))
 
 (defn split-piece [piece at]
+  {:pre [(s/valid? #(instance? Piece %) piece)
+         (s/valid? #(<= 0 %) at)
+         (s/valid? #(< % (piece-length piece)) at)]}
+         
   (let [length (piece-length piece)]
-    (cond 
-      (<= at 0) [piece]
-      (>= at length) [piece] ; but this shouldn't happen, except at end of buffer
-      :else (let [pivot (+ at (:from piece))
-                  before (assoc piece :to pivot)
-                  after (assoc piece :from pivot)]
-               [before after]))))
+    (if (zero? at) 
+      [piece]
+      (let [pivot (+ at (:from piece))
+            before (assoc piece :to pivot)
+            after (assoc piece :from pivot)]
+       [before after]))))
 
 (defrecord Table [strings pieces])
 (defn make-table [strings]
@@ -194,33 +209,6 @@
                            :pieces (-pieces-between d1' d2' []))]
          [outer inner]))))
 
-;;;; dactyl function sketch
-; TODO handle docstring (& other parameters?)
-(defmacro defmove [fname body]
-  `(defn ~(symbol (name fname)) 
-     [~(symbol "&dactyl")]
-     eval ~body))
-
-(defmacro => [& forms]
-  `(map (partial apply ~(symbol "&dactyl")) '(~@forms)))
-
-(defmove noop
-  (=> (:right)
-      (:left)))
-
-; example call
-(let [dactyl-function println]
-  (noop dactyl-function))
-
-(comment
-  (defuser my-function [param]
-    ; &dactyl and &count are passed in implicitly
-    ; e.g. from repl (call my-function "hello")
-    ; would actually call (my-function dactyl "hello")
-    ; and if bound to a keystroke might call (my-function dactyl count "hello")
-    (=> (:right &count)
-        (:insert param))))
-
 ; next steps
   ; rename Dactyl -> Phalange
   ; test / spec
@@ -231,6 +219,7 @@
   ; go to
   ; go to line
   ; go up/down
+  ; go to mark
 
 (comment
   (def table (make-table ["hello " "world"]))
