@@ -29,20 +29,15 @@
             after (assoc piece :from pivot)]
        [before after]))))
 
-(defrecord Table [strings pieces])
+(defrecord Table [pieces])
 (defn make-table [strings]
-  (Table. strings 
-          (into '() (reverse 
+  {:pre [(s/valid? #(every? string? %) strings)]}
+  (Table. (into '() (reverse 
                       (map make-piece strings)))))
 
-(defn show-piece [strings piece]
-  (let [{:keys [string from to]} piece]
-      (subs string from to)))
-
 (defn show-table [table]
-  (let [{:keys [:pieces :strings]} table
-        show-piece' (partial show-piece strings)]
-    (apply str (map show-piece' pieces))))
+  (let [{:keys [:pieces :strings]} table]
+    (apply str (map piece-string pieces))))
          
 ; zipper class, a finger onto the data
 ; (Clojure has zippers, but they seem to be only on hierarchical data

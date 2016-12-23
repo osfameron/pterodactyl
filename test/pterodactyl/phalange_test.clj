@@ -1,7 +1,8 @@
 (ns pterodactyl.phalange-test
-  (:import pterodactyl.phalange.Piece)
   (:require [clojure.test :refer :all]
-            [pterodactyl.phalange :as ph]))
+            [pterodactyl.phalange :as ph])
+  (:import pterodactyl.phalange.Piece
+           pterodactyl.phalange.Table))
 
 (deftest test-piece
   (let [piece (ph/make-piece "Hello")]
@@ -13,7 +14,9 @@
       (is (thrown? AssertionError (ph/make-piece ["Hello"]))))
     (testing "piece-length (on initial create)"
       (is (= 5 (ph/piece-length piece))
-        (is (thrown? AssertionError (ph/piece-length "X")))))))
+        (is (thrown? AssertionError (ph/piece-length "X")))))
+    (testing "piece-string"
+      (is (= "Hello" (ph/piece-string piece))))))
 
 (deftest split-piece
   (let [string "Hello World"
@@ -30,6 +33,13 @@
       (is (thrown? AssertionError (ph/split-piece piece -1)))
       (is (thrown? AssertionError (ph/split-piece piece length))))))
     
+(deftest test-table
+  (let [table (ph/make-table ["Hello" " " "World"])]
+    (testing "make-table function"
+      (isa? table Table)
+      (is (= "Hello World" (ph/show-table table)))
+      (is (thrown? AssertionError (ph/make-table "Single")))
+      (is (thrown? AssertionError (ph/make-table ["Hello" 1]))))))
     
   
 
