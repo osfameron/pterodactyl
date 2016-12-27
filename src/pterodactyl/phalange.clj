@@ -49,7 +49,8 @@
   (Dactyl. '() '() 0 0))
 
 (defn make-dactyl [table]
-  (assoc empty-dactyl :pieces table))
+  {:pre [(#(instance? Table %) table)]}
+  (assoc empty-dactyl :pieces (:pieces table)))
 
 (defn curr [dactyl]
   (first (:pieces dactyl)))

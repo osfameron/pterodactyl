@@ -2,7 +2,8 @@
   (:require [clojure.test :refer :all]
             [pterodactyl.phalange :as ph])
   (:import pterodactyl.phalange.Piece
-           pterodactyl.phalange.Table))
+           pterodactyl.phalange.Table
+           pterodactyl.phalange.Dactyl))
 
 (deftest test-piece
   (let [piece (ph/make-piece "Hello")]
@@ -45,5 +46,16 @@
       (is (thrown? AssertionError (ph/make-table ["Hello" 1])))
       (is (thrown? AssertionError (ph/show-table "Hello"))))))
     
-  
+(deftest test-dactyl
+  (let [table (ph/make-table ["Hello" " " "World"])
+        dactyl (ph/make-dactyl table)]
+    (testing "make-dactyl function"
+      (isa? dactyl Dactyl)
+      (is (= 0 (:acc-pos dactyl)))
+      (is (= 0 (:curr-pos dactyl)))
+      (is (= '() (:back dactyl)))
+      (is (= "Hello World" (ph/text-after dactyl 100))))
+    (testing "Assertion errors"
+      (is (thrown? AssertionError (ph/make-dactyl "Single")))
+      (is (thrown? AssertionError (ph/make-dactyl ["Hello" " " "World"]))))))
 
