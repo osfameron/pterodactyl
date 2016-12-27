@@ -10,7 +10,8 @@
       (isa? piece Piece)
       (is (= "Hello" (:string piece)))
       (is (= 0 (:from piece)))
-      (is (= 5 (:to piece)))
+      (is (= 5 (:to piece))))
+    (testing "Assertion errors"
       (is (thrown? AssertionError (ph/make-piece ["Hello"]))))
     (testing "piece-length (on initial create)"
       (is (= 5 (ph/piece-length piece))
@@ -28,7 +29,8 @@
         (let [[piece1 piece2] (ph/split-piece piece at)]
           (is at (ph/piece-length piece1))
           (is (- length at) (ph/piece-length piece2))
-          (is (str (ph/piece-string piece1) (ph/piece-string piece2))))) 
+          (is (str (ph/piece-string piece1) (ph/piece-string piece2)))))) 
+    (testing "Assertion errors"
       (is (thrown? AssertionError (ph/split-piece "Hello" 1)))
       (is (thrown? AssertionError (ph/split-piece piece -1)))
       (is (thrown? AssertionError (ph/split-piece piece length))))))
@@ -37,9 +39,11 @@
   (let [table (ph/make-table ["Hello" " " "World"])]
     (testing "make-table function"
       (isa? table Table)
-      (is (= "Hello World" (ph/show-table table)))
+      (is (= "Hello World" (ph/show-table table))))
+    (testing "Assertion errors"
       (is (thrown? AssertionError (ph/make-table "Single")))
-      (is (thrown? AssertionError (ph/make-table ["Hello" 1]))))))
+      (is (thrown? AssertionError (ph/make-table ["Hello" 1])))
+      (is (thrown? AssertionError (ph/show-table "Hello"))))))
     
   
 

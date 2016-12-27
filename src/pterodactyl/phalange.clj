@@ -1,25 +1,24 @@
 (ns pterodactyl.phalange
-  (:require [clojure.spec :as s])
   (:gen-class))
 
 (defrecord Piece [string from to])
 (defn make-piece [string]
-  {:pre [(s/valid? string? string)]}
+  {:pre [(string? string)]}
   (Piece. string 0 (count string)))
 
 (defn piece-length [piece]
-  {:pre [(s/valid? #(instance? Piece %) piece)]}
+  {:pre [(#(instance? Piece %) piece)]}
   (- (:to piece) (:from piece)))
 
 (defn piece-string [piece]
-  {:pre [(s/valid? #(instance? Piece %) piece)]}
+  {:pre [(#(instance? Piece %) piece)]}
   (let [{:keys [:string :from :to]} piece]
     (subs string from to)))
 
 (defn split-piece [piece at]
-  {:pre [(s/valid? #(instance? Piece %) piece)
-         (s/valid? #(<= 0 %) at)
-         (s/valid? #(< % (piece-length piece)) at)]}
+  {:pre [(#(instance? Piece %) piece)
+         (#(<= 0 %) at)
+         (#(< % (piece-length piece)) at)]}
          
   (let [length (piece-length piece)]
     (if (zero? at) 
@@ -31,20 +30,24 @@
 
 (defrecord Table [pieces])
 (defn make-table [strings]
-  {:pre [(s/valid? #(every? string? %) strings)]}
+  {:pre [(#(every? string? %) strings)]}
   (Table. (into '() (reverse 
                       (map make-piece strings)))))
 
 (defn show-table [table]
+  {:pre [(#(instance? Table %) table)]}
   (let [{:keys [:pieces :strings]} table]
     (apply str (map piece-string pieces))))
          
 ; zipper class, a finger onto the data
 ; (Clojure has zippers, but they seem to be only on hierarchical data
 ; structures?)
+; NB: the accumulator will probably become a record, rather than a single pos
 (defrecord Dactyl [back pieces acc-pos curr-pos])
+
 (def empty-dactyl
   (Dactyl. '() '() 0 0))
+
 (defn make-dactyl [table]
   (assoc empty-dactyl :pieces table))
 
