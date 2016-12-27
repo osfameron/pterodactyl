@@ -316,6 +316,10 @@ Phalange
   This could be done with generic accumulator functions.
   These could also be added by plugins.
 
+NB: the fact that I'm adding
+  {:pre [(#(instance? Dactyl %) dactyl)]}
+to each function does suggest I should be implementing a protocol instead?
+
 Types of function
 =================
 

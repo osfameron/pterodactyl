@@ -53,25 +53,31 @@
   (assoc empty-dactyl :pieces (:pieces table)))
 
 (defn curr [dactyl]
+  {:pre [(#(instance? Dactyl %) dactyl)]}
   (first (:pieces dactyl)))
 
 (defn curr-text [dactyl]
+  {:pre [(#(instance? Dactyl %) dactyl)]}
   (let [piece (curr dactyl)
         {:keys [string from to]} piece
         {:keys [curr-pos]} dactyl]
     (subs string from to)))
 
 (defn curr-text-post [dactyl]
+  {:pre [(#(instance? Dactyl %) dactyl)]}
   (subs (curr-text dactyl) (:curr-pos dactyl)))
 
 (defn curr-text-pre [dactyl]
+  {:pre [(#(instance? Dactyl %) dactyl)]}
   (subs (curr-text dactyl) 0 (:curr-pos dactyl)))
 
 (defn curr-pos-post [dactyl]
+  {:pre [(#(instance? Dactyl %) dactyl)]}
   "Number of characters from curr-pos to end of piece (dual of curr-pos)"
   (- (piece-length (curr dactyl)) (:curr-pos dactyl)))
 
 (defn dactyl-pos [dactyl]
+  {:pre [(#(instance? Dactyl %) dactyl)]}
   (+ (:acc-pos dactyl) (:curr-pos dactyl)))
 
 (defn traverse-back [dactyl]
