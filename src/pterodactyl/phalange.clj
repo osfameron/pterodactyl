@@ -48,8 +48,7 @@
 
 (defn show-table [table]
   {:pre [(table? table)]}
-  (let [{:keys [:pieces :strings]} table]
-    (apply str (map piece-string pieces))))
+  (apply str (map piece-string (:pieces table))))
          
 ; zipper class, a finger onto the data
 ; (Clojure has zippers, but they seem to be only on hierarchical data
@@ -235,7 +234,7 @@
    :post [dactyl?]}
   (let [piece (make-string-piece string)
         dactyl (split-dactyl dactyl)]
-    (update dactyl :pieces #(conj % piece))))
+    (update dactyl :pieces (partial cons piece))))
 
 ; next steps
   ; rename Dactyl -> Phalange
