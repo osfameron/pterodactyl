@@ -86,12 +86,13 @@
     (if (empty? back)
       nil
       (let [new (first back)
-            length (piece-length new)]
+            length (piece-length new)
+            last-pos (dec length)]
         (assoc dactyl
                :back (rest back)
                :pieces (conj pieces new)
                :acc-pos (- acc-pos length)
-               :curr-pos (dec length))))))
+               :curr-pos last-pos)))))
 
 (defn traverse-forward [dactyl]
   {:pre [(#(instance? Dactyl %) dactyl)]}
@@ -111,34 +112,47 @@
 ; new datastructure?  In any case, this will probably move to outer
 ; controller framework eventually.
 (defn traverse-right [dactyl count]
+  {:pre [(#(instance? Dactyl %) dactyl)
+         (#(<= 0 %) count)]}
   (let [dactyl (dissoc dactyl :bounce) 
         avail (curr-pos-post dactyl)]
     (cond
       (zero? count) dactyl
       (< count avail) (update dactyl :curr-pos (partial + count))
       :else 
-        (let [next (traverse-forward dactyl)]
+        (let [next (traverse-forward dactyl)
+              last-pos (dec (piece-length (curr dactyl)))]
           (if (nil? next)
-            (assoc dactyl :bounce :right, :curr-pos (dec (piece-length (curr dactyl))))
+            (assoc dactyl
+                   :bounce :right,
+                   :curr-pos last-pos)
             (recur next (- count avail)))))))
 
-(defn nudge-right [dactyl]
-  (traverse-right dactyl 1))
-
 (defn traverse-left [dactyl count]
+  {:pre [(#(instance? Dactyl %) dactyl)
+         (#(<= 0 %) count)]}
   (let [dactyl (dissoc dactyl :bounce) 
         avail (:curr-pos dactyl)]
     (cond
       (zero? count) dactyl
       (<= count avail) (update dactyl :curr-pos #(- % count))
       :else 
-        (let [next (traverse-back dactyl)]
+        (let [next (traverse-back dactyl)
+              steps-to-prev-piece (inc avail)]
           (if (nil? next)
             (assoc dactyl :bounce :left, :curr-pos 0)
-            (recur next (- count avail)))))))
+            (recur next (- count steps-to-prev-piece)))))))
+
+(defn nudge-right [dactyl]
+  (traverse-right dactyl 1))
+
+(defn nudge-left [dactyl]
+  (traverse-left dactyl 1))
    
 (defn text-after
   ([dactyl len] 
+   {:pre [(#(instance? Dactyl %) dactyl)
+          (#(<= 0 %) len)]}
    (apply str (text-after dactyl len [])))
 
   ([dactyl len acc]
@@ -154,7 +168,8 @@
           (conj acc chunk)))))) 
 
 (defn split-dactyl [dactyl]
-  "Split the dactyl at current insertion point.  Anything to left of curr-pos will become a new piece.  Noop if we are at far-left of piece."
+  "Split the dactyl at current insertion point.  Anything to left of curr-pos
+  will become a new piece.  Noop if we are at far-left of piece."
   (let [{:keys [curr-pos back pieces acc-pos]} dactyl]
     (if (zero? curr-pos)
       dactyl

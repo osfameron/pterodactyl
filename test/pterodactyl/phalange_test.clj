@@ -53,7 +53,7 @@
     `(do
        (is (= ~pos# (ph/dactyl-pos ~d)))
        (is (= (subs ~'string ~pos#) (ph/text-after ~d 100)))))
-    
+
 (deftest test-dactyl
   (let [strings ["Hello" " " "World"]
         table (ph/make-table strings)
@@ -104,12 +104,34 @@
             (let [d7 (tr dactyl [5 (- i 5)])]
               (test-dactyl-at d7 i))))
         (testing "bounce :right"
-          (let [d8   (tr dactyl [(dec length)])
-                d8'  (tr dactyl [length])
-                d8'' (tr dactyl [(dec length) 1])]
+          (let [d8    (tr dactyl [(dec length)])
+                d8'   (tr dactyl [length])
+                d8''  (tr dactyl [(dec length) 1])
+                d8''' (tr dactyl [100])]
               (is (= nil (:bounce d8))) ; sanity
               (is (= d8' (assoc d8 :bounce :right)))
-              (is (= d8' d8''))))))
+              (is (= d8' d8'' d8'''))))))
+    (testing "Traverse right and left"
+      (let [ds-right (take length (iterate ph/nudge-right dactyl))
+            dactyl-end (ph/traverse-right dactyl (dec length))
+            ds-left  (take length (iterate ph/nudge-left dactyl-end))
+            exp-dactyl-pos's    (range length)
+            exp-curr-pos's      [0 1 2 3 4 0 0 1 2 3 4]
+            exp-curr-pos-post's [5 4 3 2 1 1 5 4 3 2 1]
+            exp-curr-text-post's ["Hello" "ello" "llo" "lo" "o"
+                                  " "
+                                  "World" "orld" "rld" "ld" "d"]]
+          (testing "to the right..."
+            (is (= exp-dactyl-pos's (map ph/dactyl-pos ds-right)))
+            (is (= exp-curr-pos's (map :curr-pos ds-right)))
+            (is (= exp-curr-pos-post's (map ph/curr-pos-post ds-right)))
+            (is (= exp-curr-text-post's (map ph/curr-text-post ds-right))))
+          (testing "to the left..."
+            (is (= (reverse exp-dactyl-pos's) (map ph/dactyl-pos ds-left)))
+            (is (= (reverse exp-curr-pos's) (map :curr-pos ds-left)))
+            (is (= (reverse exp-curr-pos-post's) (map ph/curr-pos-post ds-left)))
+            (is (= (reverse exp-curr-text-post's) (map ph/curr-text-post ds-left))))))
+
     (testing "Assertion errors"
       (is (thrown? AssertionError (ph/make-dactyl "Single")))
       (is (thrown? AssertionError (ph/make-dactyl ["Hello" " " "World"]))))))
