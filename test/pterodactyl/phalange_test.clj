@@ -103,6 +103,16 @@
           (doseq [i (range 5 length)]
             (let [d7 (tr dactyl [5 (- i 5)])]
               (test-dactyl-at d7 i))))
+        (testing "goto"
+          (let [jumps (shuffle (range length))
+                test-goto (fn [d j]
+                            (let [d' (ph/goto d j)
+                                  d'' (ph/goto d' j)]
+                              (is (= d' d''))
+                              (test-dactyl-at d' j)
+                              d'))]
+            (reduce test-goto dactyl jumps)))
+
         (testing "bounce :right"
           (let [d8    (tr dactyl [(dec length)])
                 d8'   (tr dactyl [length])

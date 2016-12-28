@@ -148,6 +148,15 @@
 
 (defn nudge-left [dactyl]
   (traverse-left dactyl 1))
+
+(defn goto [dactyl pos]
+  {:pre [(instance? Dactyl dactyl)
+         (<= 0 pos)]}
+  (let [curr-pos (dactyl-pos dactyl)]
+    (cond
+      (= pos curr-pos) dactyl
+      (> pos curr-pos) (traverse-right dactyl (- pos curr-pos))
+      (< pos curr-pos) (traverse-left dactyl (- curr-pos pos)))))
    
 (defn text-after
   ([dactyl len] 
