@@ -162,10 +162,18 @@
       (is (= "Helld" (-> dactyl 
                          (ph/traverse-right 4)
                          (ph/delete-to #(ph/goto % 10))
-                         (ph/goto 0)
-                         (ph/text-after 100))))
+                         (ph/goto 0) (ph/text-after 100))))
       (is (= "Hell World" (-> dactyl
                              (ph/traverse-right 5)
                              (ph/delete-to ph/nudge-left)
-                             (ph/goto 0)
-                             (ph/text-after 100)))))))
+                             (ph/goto 0) (ph/text-after 100))))
+      (is (= "World" (-> dactyl
+                         (ph/traverse-right 6)
+                         (ph/delete-to #(ph/goto % 0))
+                         (ph/text-after 100))))
+      ;; this is an oddity, as we don't have end-of-buffer handling yet, so
+      ;; can't delete the final character...!
+      (is (= "Hellod" (-> dactyl
+                         (ph/traverse-right 5)
+                         (ph/delete-to #(ph/traverse-right % 100))
+                         (ph/goto 0) (ph/text-after 100)))))))
