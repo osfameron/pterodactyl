@@ -112,7 +112,6 @@
                               (test-dactyl-at d' j)
                               d'))]
             (reduce test-goto dactyl jumps)))
-
         (testing "bounce :right"
           (let [d8    (tr dactyl [(dec length)])
                 d8'   (tr dactyl [length])
@@ -141,20 +140,11 @@
             (is (= (reverse exp-curr-pos's) (map :curr-pos ds-left)))
             (is (= (reverse exp-curr-pos-post's) (map ph/curr-pos-post ds-left)))
             (is (= (reverse exp-curr-text-post's) (map ph/curr-text-post ds-left))))))
-
     (testing "Assertion errors"
       (is (thrown? AssertionError (ph/make-dactyl "Single")))
-      (is (thrown? AssertionError (ph/make-dactyl ["Hello" " " "World"]))))))
-
-(deftest test-split-dactyl
-  (let [strings ["Hello" " " "World"]
-        table   (ph/make-table strings)
-        string  (apply str strings)
-        length  (count string)
-        dactyl  (ph/make-dactyl table)
-        ds      (take length (iterate ph/nudge-right dactyl))]
+      (is (thrown? AssertionError (ph/make-dactyl ["Hello" " " "World"]))))
     (testing "split-dactyl"
-      (doseq [d ds]
+      (doseq [d (take length (iterate ph/nudge-right dactyl))]
         (let [d-split (ph/split-dactyl d)]
           (if (zero? (:curr-pos d))
             (is (= d d-split))
@@ -167,4 +157,15 @@
                     left (ph/nudge-left d-split)]
                 (is (= prev left))
                 (is (= (:acc-pos d) (:acc-pos prev)))
-                (is (= (dec (:curr-pos d)) (:curr-pos prev)))))))))))
+                (is (= (dec (:curr-pos d)) (:curr-pos prev)))))))))
+    (testing "delete-to"
+      (is (= "Helld" (-> dactyl 
+                         (ph/traverse-right 4)
+                         (ph/delete-to #(ph/goto % 10))
+                         (ph/goto 0)
+                         (ph/text-after 100))))
+      (is (= "Hell World" (-> dactyl
+                             (ph/traverse-right 5)
+                             (ph/delete-to ph/nudge-left)
+                             (ph/goto 0)
+                             (ph/text-after 100)))))))

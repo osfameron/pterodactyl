@@ -1,4 +1,5 @@
 (ns pterodactyl.phalange
+  (:require [taoensso.truss :as truss :refer (have have! have?)])
   (:gen-class))
 
 (defrecord Piece [string from to])
@@ -29,13 +30,14 @@
        [before after]))))
 
 (defrecord Table [pieces])
+(def table? (partial instance? Table))
 (defn make-table [strings]
   {:pre [(every? string? strings)]}
   (Table. (into '() (reverse 
                       (map make-piece strings)))))
 
 (defn show-table [table]
-  {:pre [(instance? Table table)]}
+  {:pre [(table? table)]}
   (let [{:keys [:pieces :strings]} table]
     (apply str (map piece-string pieces))))
          
@@ -45,43 +47,45 @@
 ; NB: the accumulator will probably become a record, rather than a single pos
 (defrecord Dactyl [back pieces acc-pos curr-pos])
 
+(def dactyl? (partial instance? Dactyl))
+
 (def empty-dactyl
   (Dactyl. '() '() 0 0))
 
 (defn make-dactyl [table]
-  {:pre [(instance? Table table)]}
+  {:pre [(table? table)]}
   (assoc empty-dactyl :pieces (:pieces table)))
 
 (defn curr [dactyl]
-  {:pre [(instance? Dactyl dactyl)]}
+  {:pre [(dactyl? dactyl)]}
   (first (:pieces dactyl)))
 
 (defn curr-text [dactyl]
-  {:pre [(instance? Dactyl dactyl)]}
+  {:pre [(dactyl? dactyl)]}
   (let [piece (curr dactyl)
         {:keys [string from to]} piece
         {:keys [curr-pos]} dactyl]
     (subs string from to)))
 
 (defn curr-text-post [dactyl]
-  {:pre [(instance? Dactyl dactyl)]}
+  {:pre [(dactyl? dactyl)]}
   (subs (curr-text dactyl) (:curr-pos dactyl)))
 
 (defn curr-text-pre [dactyl]
-  {:pre [(instance? Dactyl dactyl)]}
+  {:pre [(dactyl? dactyl)]}
   (subs (curr-text dactyl) 0 (:curr-pos dactyl)))
 
 (defn curr-pos-post [dactyl]
-  {:pre [(instance? Dactyl dactyl)]}
+  {:pre [(dactyl? dactyl)]}
   "Number of characters from curr-pos to end of piece (dual of curr-pos)"
   (- (piece-length (curr dactyl)) (:curr-pos dactyl)))
 
 (defn dactyl-pos [dactyl]
-  {:pre [(instance? Dactyl dactyl)]}
+  {:pre [(dactyl? dactyl)]}
   (+ (:acc-pos dactyl) (:curr-pos dactyl)))
 
 (defn traverse-back [dactyl]
-  {:pre [(instance? Dactyl dactyl)]}
+  {:pre [(dactyl? dactyl)]}
   (let [{:keys [:back :pieces :acc-pos]} dactyl]
     (if (empty? back)
       nil
@@ -95,7 +99,7 @@
                :curr-pos last-pos)))))
 
 (defn traverse-forward [dactyl]
-  {:pre [(instance? Dactyl dactyl)]}
+  {:pre [(dactyl? dactyl)]}
   (let [{:keys [:back :pieces :acc-pos]} dactyl
         next (rest pieces)]
     (if (empty? next)
@@ -112,7 +116,7 @@
 ; new datastructure?  In any case, this will probably move to outer
 ; controller framework eventually.
 (defn traverse-right [dactyl count]
-  {:pre [(instance? Dactyl dactyl)
+  {:pre [(dactyl? dactyl)
          (<= 0 count)]}
   (let [dactyl (dissoc dactyl :bounce) 
         avail (curr-pos-post dactyl)]
@@ -129,7 +133,7 @@
             (recur next (- count avail)))))))
 
 (defn traverse-left [dactyl count]
-  {:pre [(instance? Dactyl dactyl)
+  {:pre [(dactyl? dactyl)
          (<= 0 count)]}
   (let [dactyl (dissoc dactyl :bounce) 
         avail (:curr-pos dactyl)]
@@ -150,7 +154,7 @@
   (traverse-left dactyl 1))
 
 (defn goto [dactyl pos]
-  {:pre [(instance? Dactyl dactyl)
+  {:pre [(dactyl? dactyl)
          (<= 0 pos)]}
   (let [curr-pos (dactyl-pos dactyl)]
     (cond
@@ -160,7 +164,7 @@
    
 (defn text-after
   ([dactyl len] 
-   {:pre [(instance? Dactyl dactyl)
+   {:pre [(dactyl? dactyl)
           (<= 0 len)]}
    (apply str (text-after dactyl len [])))
 
@@ -177,8 +181,8 @@
           (conj acc chunk)))))) 
 
 (defn split-dactyl [dactyl]
-  {:pre [(instance? Dactyl dactyl)]
-   :post [(instance? Dactyl %)]}
+  {:pre [(dactyl? dactyl)]
+   :post [dactyl?]}
   "Split the dactyl at current insertion point.  Anything to left of curr-pos
   will become a new piece.  Noop if we are at far-left of piece."
   (let [{:keys [curr-pos back pieces acc-pos]} dactyl]
@@ -191,128 +195,21 @@
                :curr-pos 0
                :acc-pos (dactyl-pos dactyl))))))
 
-(defn delete-between [d1 d2]
-  (if (> (dactyl-pos d1) (dactyl-pos d2))
-    (delete-between d2 d1)
-    (let [d1' (split-dactyl d1)
-          d2' (split-dactyl d2)]
-      (assoc d1' :pieces (:pieces d2')))))
+(defn delete-to [dactyl movement]
+  {:pre [(dactyl? dactyl)
+         (fn? movement)]
+   :post [dactyl?]}
+  (let [other (have dactyl? (movement dactyl))
+        [d1 d2] (map split-dactyl (sort-by dactyl-pos [dactyl other]))]
+      (assoc d1 :pieces (:pieces d2))))
 
-(defn -pieces-between 
-  "Get the pieces between two dactyls.  These must be in order, and split"
-  [left right acc]
-  (let [lpos (dactyl-pos left)
-        piece (curr left)
-        rpos (dactyl-pos right)
-        avail (curr-pos-post left)
-        remaining (- rpos lpos)]
-     (println (str "lpos: " lpos " rpos: " rpos " avail: " avail " rem: " remaining))
-     (cond
-       (nil? left)
-       ("EEEEK!")
-
-       (= lpos rpos)
-       acc
-       
-       (<= remaining avail)
-       (conj acc (assoc piece :to (+ (:from piece) remaining))) 
-  
-       :else
-          (recur (traverse-forward left) right (conj acc piece)))))
-  
-(defn region-between [d1 d2]
-  (let [d1pos (dactyl-pos d1)
-        d2pos (dactyl-pos d2)]
-    (cond
-      (= d1pos d2pos)
-      [d1 empty-dactyl]
-
-      (> d1pos d2pos)
-      (region-between d2 d1)
-
-      :else
-        (let [d1' (split-dactyl d1)
-              d2' (split-dactyl d2)
-              outer (assoc d1' 
-                           :pieces (:pieces d2'))
-              inner (assoc d1' 
-                           :back '() 
-                           :acc-pos 0 
-                           :curr-pos 0 
-                           :pieces (-pieces-between d1' d2' []))]
-         [outer inner]))))
 
 ; next steps
   ; rename Dactyl -> Phalange
-  ; test / spec
   ; end-of-buffer handling
   ; unzip & print whole buffer
   ; insert
   ; text-before?
-  ; go to
   ; go to line
   ; go up/down
   ; go to mark
-
-(comment
-  (def table (make-table ["hello " "world"]))
-  (show-table table)
-  (def d (make-dactyl table))
-  (text-after d 100)
-  (doseq [i (range 12)] 
-    (-> d (traverse-right i)
-          (#(println (str)
-             (-> % (dactyl-pos))
-             "\t/ "
-             (-> % (:curr-pos))
-             "\t/ "
-             (-> % (curr) (:string))
-             "\t/ "
-             "<"
-             (-> % (text-after 100)) 
-             ">"))))
-  (doseq [i (range 12)] 
-    (-> (traverse-right d 11) (traverse-left i)
-          (#(println (str)
-             (-> % (dactyl-pos))
-             "\t/ "
-             (-> % (:curr-pos))
-             "\t/ "
-             (-> % (curr) (:string))
-             "\t/ "
-             "<"
-             (-> % (text-after 100)) 
-             ">"))))
-
-  (-> d (traverse-right 6) (text-after 100))
-  (-> d (traverse-right 3) (split-dactyl) (:curr-pos))
-  (-> d (traverse-right 3) (split-dactyl) (curr-text))
-  (-> d (traverse-right 3) (text-after 100))
-  (-> d (traverse-right 3) (split-dactyl) (text-after 100))
-  (-> d (traverse-right 10) 
-      (#(let [d1 %
-              d2 (traverse-left d1 4)]
-         (delete-between d1 d2)))
-      (traverse-left 100)
-      (text-after 100))
-
-  (-> d (traverse-right 10) 
-      (#(let [d1 %
-              d2 (traverse-left d1 4)
-              [outer inner] (region-between d1 d2)]
-         (println (-> outer (traverse-left 100) (text-after 100)))
-         (println (-> inner (traverse-left 100) (text-after 100))))))
-
-  (-> d (traverse-right 8) 
-      (#(let [d1 %
-              d2 (traverse-left d1 4)]
-          (-pieces-between (split-dactyl d2) (split-dactyl d1) []))))
-
-  (-> d (traverse-right 6) (text-after 100))
-  (-> d (traverse-right 8) (traverse-left 4) (split-dactyl) (#(println (dactyl-pos %))))
-  (-> d (traverse-right 7) (traverse-left 2) (text-after 100))
-  (-> d (traverse-right 7) (traverse-left 2))
-  (traverse-forward (traverse-right d 1))
-  (:acc-pos (traverse-forward d))
-  (:acc-pos (traverse-back (traverse-forward d)))
-  (:acc-pos (traverse-forward (traverse-forward (traverse-forward d)))))
