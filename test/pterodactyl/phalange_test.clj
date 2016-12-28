@@ -75,7 +75,7 @@
       (let [d3 (-> dactyl ph/traverse-forward ph/traverse-back)]
         (is (= (assoc dactyl :curr-pos 5) d3))))
     (testing "traverse-right"
-      (let [string (clojure.string/join strings)
+      (let [string (apply str strings)
             length (count string)
             tr (fn [d jumps] (reduce ph/traverse-right d jumps))
             test-at (fn [d pos] 
