@@ -184,5 +184,16 @@
       (is (= "Hello there World" (-> dactyl
                                      (ph/traverse-right 6)
                                      (ph/insert "there ")
-                                     (ph/goto 0) (ph/text-after 100)))))))
-
+                                     (ph/goto 0) (ph/text-after 100)))))
+    (testing "copy-range"
+      (is (= "" (-> dactyl
+                    (ph/copy-range identity)
+                    (ph/show-table))))
+      (is (= "o" (-> dactyl
+                     (ph/traverse-right 4)
+                     (ph/copy-range ph/nudge-right)
+                     (ph/show-table))))
+      (is (= "o Worl" (-> dactyl
+                         (ph/traverse-right 4)
+                         (ph/copy-range #(ph/goto % 10))
+                         (ph/show-table)))))))

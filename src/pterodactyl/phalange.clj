@@ -20,7 +20,6 @@
   {:pre [(instance? Piece piece)
          (<= 0 at)
          (< at (piece-length piece))]}
-         
   (let [length (piece-length piece)]
     (if (zero? at) 
       [piece]
@@ -203,6 +202,22 @@
         [d1 d2] (map split-dactyl (sort-by dactyl-pos [dactyl other]))]
       (assoc d1 :pieces (:pieces d2))))
 
+(defn copy-range [dactyl movement]
+  {:pre [(dactyl? dactyl)
+         (fn? movement)]
+   :post [table?]}
+  ;; split both origin and end point, and make sure that both dactyls
+  ;; have both splits in their piece lists by moving *back* to origin
+  ;; this allows us to take-while identical? instead of having to do
+  ;; any more complicated calculation.
+  (let [dactyl (split-dactyl dactyl)
+        other (split-dactyl (have dactyl? (movement dactyl)))
+        dactyl (goto other (dactyl-pos dactyl))
+        [d1 d2] (sort-by dactyl-pos [dactyl other])
+        target (first (:pieces d2))
+        pieces (vec (take-while #(not (identical? % target)) (:pieces d1)))] 
+    (Table. pieces)))
+
 (defn insert [dactyl string]
   {:pre [(dactyl? dactyl)
          (string? string)]
@@ -212,8 +227,6 @@
     (update dactyl :pieces #(conj % piece))))
 
 ; next steps
-  ; insert
-  ; cut region (into new table)
   ; end-of-buffer handling
   ; rename Dactyl -> Phalange
   ; unzip & print whole buffer
