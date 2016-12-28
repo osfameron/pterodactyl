@@ -188,6 +188,9 @@
     (if (zero? curr-pos)
       dactyl
       (let [[pre post] (split-piece (curr dactyl) curr-pos)]
+        ; tempted to use (update) instead, e.g. with
+        ;   (comp (partial cons post) rest)
+        ; but not sure that's any more readable...
         (assoc dactyl
                :back (conj back pre)
                :pieces (conj (rest pieces) post)
