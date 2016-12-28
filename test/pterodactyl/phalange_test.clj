@@ -136,3 +136,25 @@
       (is (thrown? AssertionError (ph/make-dactyl "Single")))
       (is (thrown? AssertionError (ph/make-dactyl ["Hello" " " "World"]))))))
 
+(deftest test-split-dactyl
+  (let [strings ["Hello" " " "World"]
+        table   (ph/make-table strings)
+        string  (apply str strings)
+        length  (count string)
+        dactyl  (ph/make-dactyl table)
+        ds      (take length (iterate ph/nudge-right dactyl))]
+    (testing "split-dactyl"
+      (doseq [d ds]
+        (let [d-split (ph/split-dactyl d)]
+          (if (zero? (:curr-pos d))
+            (is (= d d-split))
+            (do
+              (is (= (ph/dactyl-pos d) (ph/dactyl-pos d-split)))
+              (is (= 0 (:curr-pos d-split)))
+              (is (= (+ (:acc-pos d) (:curr-pos d)) (:acc-pos d-split)))
+              (is (= (rest (:pieces d)) (rest (:pieces d-split))))
+              (let [prev (ph/traverse-back d-split)
+                    left (ph/nudge-left d-split)]
+                (is (= prev left))
+                (is (= (:acc-pos d) (:acc-pos prev)))
+                (is (= (dec (:curr-pos d)) (:curr-pos prev)))))))))))
