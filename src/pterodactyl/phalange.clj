@@ -7,18 +7,18 @@
   (Piece. string 0 (count string)))
 
 (defn piece-length [piece]
-  {:pre [(#(instance? Piece %) piece)]}
+  {:pre [(instance? Piece piece)]}
   (- (:to piece) (:from piece)))
 
 (defn piece-string [piece]
-  {:pre [(#(instance? Piece %) piece)]}
+  {:pre [(instance? Piece piece)]}
   (let [{:keys [:string :from :to]} piece]
     (subs string from to)))
 
 (defn split-piece [piece at]
-  {:pre [(#(instance? Piece %) piece)
-         (#(<= 0 %) at)
-         (#(< % (piece-length piece)) at)]}
+  {:pre [(instance? Piece piece)
+         (<= 0 at)
+         (< at (piece-length piece))]}
          
   (let [length (piece-length piece)]
     (if (zero? at) 
@@ -30,12 +30,12 @@
 
 (defrecord Table [pieces])
 (defn make-table [strings]
-  {:pre [(#(every? string? %) strings)]}
+  {:pre [(every? string? strings)]}
   (Table. (into '() (reverse 
                       (map make-piece strings)))))
 
 (defn show-table [table]
-  {:pre [(#(instance? Table %) table)]}
+  {:pre [(instance? Table table)]}
   (let [{:keys [:pieces :strings]} table]
     (apply str (map piece-string pieces))))
          
@@ -49,39 +49,39 @@
   (Dactyl. '() '() 0 0))
 
 (defn make-dactyl [table]
-  {:pre [(#(instance? Table %) table)]}
+  {:pre [(instance? Table table)]}
   (assoc empty-dactyl :pieces (:pieces table)))
 
 (defn curr [dactyl]
-  {:pre [(#(instance? Dactyl %) dactyl)]}
+  {:pre [(instance? Dactyl dactyl)]}
   (first (:pieces dactyl)))
 
 (defn curr-text [dactyl]
-  {:pre [(#(instance? Dactyl %) dactyl)]}
+  {:pre [(instance? Dactyl dactyl)]}
   (let [piece (curr dactyl)
         {:keys [string from to]} piece
         {:keys [curr-pos]} dactyl]
     (subs string from to)))
 
 (defn curr-text-post [dactyl]
-  {:pre [(#(instance? Dactyl %) dactyl)]}
+  {:pre [(instance? Dactyl dactyl)]}
   (subs (curr-text dactyl) (:curr-pos dactyl)))
 
 (defn curr-text-pre [dactyl]
-  {:pre [(#(instance? Dactyl %) dactyl)]}
+  {:pre [(instance? Dactyl dactyl)]}
   (subs (curr-text dactyl) 0 (:curr-pos dactyl)))
 
 (defn curr-pos-post [dactyl]
-  {:pre [(#(instance? Dactyl %) dactyl)]}
+  {:pre [(instance? Dactyl dactyl)]}
   "Number of characters from curr-pos to end of piece (dual of curr-pos)"
   (- (piece-length (curr dactyl)) (:curr-pos dactyl)))
 
 (defn dactyl-pos [dactyl]
-  {:pre [(#(instance? Dactyl %) dactyl)]}
+  {:pre [(instance? Dactyl dactyl)]}
   (+ (:acc-pos dactyl) (:curr-pos dactyl)))
 
 (defn traverse-back [dactyl]
-  {:pre [(#(instance? Dactyl %) dactyl)]}
+  {:pre [(instance? Dactyl dactyl)]}
   (let [{:keys [:back :pieces :acc-pos]} dactyl]
     (if (empty? back)
       nil
@@ -95,7 +95,7 @@
                :curr-pos last-pos)))))
 
 (defn traverse-forward [dactyl]
-  {:pre [(#(instance? Dactyl %) dactyl)]}
+  {:pre [(instance? Dactyl dactyl)]}
   (let [{:keys [:back :pieces :acc-pos]} dactyl
         next (rest pieces)]
     (if (empty? next)
@@ -112,8 +112,8 @@
 ; new datastructure?  In any case, this will probably move to outer
 ; controller framework eventually.
 (defn traverse-right [dactyl count]
-  {:pre [(#(instance? Dactyl %) dactyl)
-         (#(<= 0 %) count)]}
+  {:pre [(instance? Dactyl dactyl)
+         (<= 0 count)]}
   (let [dactyl (dissoc dactyl :bounce) 
         avail (curr-pos-post dactyl)]
     (cond
@@ -129,8 +129,8 @@
             (recur next (- count avail)))))))
 
 (defn traverse-left [dactyl count]
-  {:pre [(#(instance? Dactyl %) dactyl)
-         (#(<= 0 %) count)]}
+  {:pre [(instance? Dactyl dactyl)
+         (<= 0 count)]}
   (let [dactyl (dissoc dactyl :bounce) 
         avail (:curr-pos dactyl)]
     (cond
@@ -151,8 +151,8 @@
    
 (defn text-after
   ([dactyl len] 
-   {:pre [(#(instance? Dactyl %) dactyl)
-          (#(<= 0 %) len)]}
+   {:pre [(instance? Dactyl dactyl)
+          (<= 0 len)]}
    (apply str (text-after dactyl len [])))
 
   ([dactyl len acc]
@@ -168,6 +168,8 @@
           (conj acc chunk)))))) 
 
 (defn split-dactyl [dactyl]
+  {:pre [(instance? Dactyl dactyl)]
+   :post [(instance? Dactyl %)]}
   "Split the dactyl at current insertion point.  Anything to left of curr-pos
   will become a new piece.  Noop if we are at far-left of piece."
   (let [{:keys [curr-pos back pieces acc-pos]} dactyl]
