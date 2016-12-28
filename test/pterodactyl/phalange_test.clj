@@ -45,58 +45,71 @@
       (is (thrown? AssertionError (ph/make-table "Single")))
       (is (thrown? AssertionError (ph/make-table ["Hello" 1])))
       (is (thrown? AssertionError (ph/show-table "Hello"))))))
+
+(defmacro test-dactyl-at [d pos#]
+  "Macro instead of function, purely to give failure message with line-number
+  of caller. This expects to be run within test-dactyl, as it requires the
+  'string' binding"
+    `(do
+       (is (= ~pos# (ph/dactyl-pos ~d)))
+       (is (= (subs ~'string ~pos#) (ph/text-after ~d 100)))))
     
 (deftest test-dactyl
   (let [strings ["Hello" " " "World"]
         table (ph/make-table strings)
+        string (apply str strings)
+        length (count string)
         dactyl (ph/make-dactyl table)]
     (testing "make-dactyl function"
       (isa? dactyl Dactyl)
       (is (= 0 (:acc-pos dactyl)))
       (is (= 0 (:curr-pos dactyl)))
-      (is (= '() (:back dactyl)))
-      (is (= "Hello World" (ph/text-after dactyl 100))))
+      (is (= '() (:back dactyl))))
     (testing "current/dactyl pos/text functions functions"
       (is (= (ph/make-piece "Hello") (ph/curr dactyl)))
       (is (= "Hello" (ph/curr-text dactyl)))
       (is (= "Hello" (ph/curr-text-post dactyl)))
       (is (= 5 (ph/curr-pos-post dactyl)))
       (is (= "" (ph/curr-text-pre dactyl)))
-      (is (= 0 (ph/dactyl-pos dactyl))))
+      (test-dactyl-at dactyl 0))
     (testing "traverse-forward"
       (let [d2 (ph/traverse-forward dactyl)]
-        (is (= " World" (ph/text-after d2 100)))
         (is (= " " (ph/curr-text d2)))
         (is (= " " (ph/curr-text-post d2)))
         (is (= 1 (ph/curr-pos-post d2)))
         (is (= "" (ph/curr-text-pre d2)))
-        (is (= 5 (ph/dactyl-pos d2)))))
+        (test-dactyl-at d2 5)))
     (testing "traverse-forward then traverse-back"
       (let [d3 (-> dactyl ph/traverse-forward ph/traverse-back)]
-        (is (= (assoc dactyl :curr-pos 5) d3))))
+        (is (= (assoc dactyl :curr-pos 4) d3))
+        (test-dactyl-at d3 4)
+        (is (= "Hello" (ph/curr-text d3)))
+        (is (= "o" (ph/curr-text-post d3)))))
     (testing "traverse-right"
-      (let [string (apply str strings)
-            length (count string)
-            tr (fn [d jumps] (reduce ph/traverse-right d jumps))
-            test-at (fn [d pos] 
-                      (is (= pos (ph/dactyl-pos d)))
-                      (is (= (subs string pos) (ph/text-after d 100))))]
+      (let [tr (fn [d jumps] (reduce ph/traverse-right d jumps))]
         (testing "jump in one go"
           (doseq [i (range length)]
-            (let [d2 (ph/traverse-right dactyl i)]
-              (test-at d2 i))))
+            (let [d4 (ph/traverse-right dactyl i)]
+              (test-dactyl-at d4 i))))
         (testing "jump by 1s"
           (doseq [i (range length)]
-            (let [d3 (tr dactyl (repeat i 1))]
-              (test-at d3 i))))
+            (let [d5 (tr dactyl (repeat i 1))]
+              (test-dactyl-at d5 i))))
         (testing "jump from pos 4"
           (doseq [i (range 4 length)]
-            (let [d4 (tr dactyl [4 (- i 4)])]
-              (test-at d4 i))))
+            (let [d6 (tr dactyl [4 (- i 4)])]
+              (test-dactyl-at d6 i))))
         (testing "jump from pos 5"
-          (doseq [i (range 4 length)]
-            (let [d4 (tr dactyl [4 (- i 4)])]
-              (test-at d4 i))))))
+          (doseq [i (range 5 length)]
+            (let [d7 (tr dactyl [5 (- i 5)])]
+              (test-dactyl-at d7 i))))
+        (testing "bounce :right"
+          (let [d8   (tr dactyl [(dec length)])
+                d8'  (tr dactyl [length])
+                d8'' (tr dactyl [(dec length) 1])]
+              (is (= nil (:bounce d8))) ; sanity
+              (is (= d8' (assoc d8 :bounce :right)))
+              (is (= d8' d8''))))))
     (testing "Assertion errors"
       (is (thrown? AssertionError (ph/make-dactyl "Single")))
       (is (thrown? AssertionError (ph/make-dactyl ["Hello" " " "World"]))))))

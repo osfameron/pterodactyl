@@ -81,6 +81,7 @@
   (+ (:acc-pos dactyl) (:curr-pos dactyl)))
 
 (defn traverse-back [dactyl]
+  {:pre [(#(instance? Dactyl %) dactyl)]}
   (let [{:keys [:back :pieces :acc-pos]} dactyl]
     (if (empty? back)
       nil
@@ -90,9 +91,10 @@
                :back (rest back)
                :pieces (conj pieces new)
                :acc-pos (- acc-pos length)
-               :curr-pos length)))))
+               :curr-pos (dec length))))))
 
 (defn traverse-forward [dactyl]
+  {:pre [(#(instance? Dactyl %) dactyl)]}
   (let [{:keys [:back :pieces :acc-pos]} dactyl
         next (rest pieces)]
     (if (empty? next)
@@ -117,7 +119,7 @@
       :else 
         (let [next (traverse-forward dactyl)]
           (if (nil? next)
-            (assoc dactyl :bounce :right, :curr-pos (piece-length (curr dactyl)))
+            (assoc dactyl :bounce :right, :curr-pos (dec (piece-length (curr dactyl))))
             (recur next (- count avail)))))))
 
 (defn nudge-right [dactyl]
