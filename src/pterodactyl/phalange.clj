@@ -203,10 +203,19 @@
         [d1 d2] (map split-dactyl (sort-by dactyl-pos [dactyl other]))]
       (assoc d1 :pieces (:pieces d2))))
 
+(defn insert [dactyl string]
+  {:pre [(dactyl? dactyl)
+         (string? string)]
+   :post [dactyl?]}
+  (let [piece (make-piece string)
+        dactyl (split-dactyl dactyl)]
+    (update dactyl :pieces #(conj % piece))))
 
 ; next steps
-  ; rename Dactyl -> Phalange
+  ; insert
+  ; cut region (into new table)
   ; end-of-buffer handling
+  ; rename Dactyl -> Phalange
   ; unzip & print whole buffer
   ; insert
   ; text-before?

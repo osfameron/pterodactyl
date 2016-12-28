@@ -176,4 +176,13 @@
       (is (= "Hellod" (-> dactyl
                          (ph/traverse-right 5)
                          (ph/delete-to #(ph/traverse-right % 100))
-                         (ph/goto 0) (ph/text-after 100)))))))
+                         (ph/goto 0) (ph/text-after 100)))))
+    (testing "insert"
+      (is (= "So, Hello World" (-> dactyl
+                                   (ph/insert "So, ")
+                                   (ph/goto 0) (ph/text-after 100))))
+      (is (= "Hello there World" (-> dactyl
+                                     (ph/traverse-right 6)
+                                     (ph/insert "there ")
+                                     (ph/goto 0) (ph/text-after 100)))))))
+
