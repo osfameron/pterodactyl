@@ -1,40 +1,42 @@
 (ns pterodactyl.phalange-test
   (:require [clojure.test :refer :all]
             [pterodactyl.phalange :as ph])
-  (:import pterodactyl.phalange.Piece
+  (:import pterodactyl.phalange.StringPiece
+           pterodactyl.phalange.Piece
            pterodactyl.phalange.Table
            pterodactyl.phalange.Dactyl))
 
 (deftest test-piece
-  (let [piece (ph/make-piece "Hello")]
-    (testing "make-piece function"
-      (isa? piece Piece)
+  (let [piece (ph/make-string-piece "Hello")]
+    (testing "make-string-piece function"
+      (isa? piece StringPiece)
+      ;(is (satisfies? Piece piece))
       (is (= "Hello" (:string piece)))
       (is (= 0 (:from piece)))
       (is (= 5 (:to piece))))
     (testing "Assertion errors"
-      (is (thrown? AssertionError (ph/make-piece ["Hello"]))))
+      (is (thrown? AssertionError (ph/make-string-piece ["Hello"]))))
     (testing "piece-length (on initial create)"
-      (is (= 5 (ph/piece-length piece))
-        (is (thrown? AssertionError (ph/piece-length "X")))))
+      (is (= 5 (ph/piece-length piece))))
     (testing "piece-string"
-      (is (= "Hello" (ph/piece-string piece))))))
+      (is (= "Hello" (ph/piece-string piece))))
+    (testing "END-OF-BUFFER"
+      (is (= 1 (ph/piece-length ph/END-OF-BUFFER)))
+      (is (= "" (ph/piece-string ph/END-OF-BUFFER)))
+      (is (= "<END-OF-BUFFER>" (str ph/END-OF-BUFFER))))))
 
 (deftest split-piece
   (let [string "Hello World"
-        piece (ph/make-piece string)
+        piece (ph/make-string-piece string)
         length (count string)]
     (testing "split-piece function & piece-string"
+      (is (= [ph/END-OF-BUFFER] (ph/split-piece ph/END-OF-BUFFER 0)))
       (is (= [piece] (ph/split-piece piece 0)))
       (doseq [at (range 2 length)]
         (let [[piece1 piece2] (ph/split-piece piece at)]
           (is at (ph/piece-length piece1))
           (is (- length at) (ph/piece-length piece2))
-          (is (str (ph/piece-string piece1) (ph/piece-string piece2)))))) 
-    (testing "Assertion errors"
-      (is (thrown? AssertionError (ph/split-piece "Hello" 1)))
-      (is (thrown? AssertionError (ph/split-piece piece -1)))
-      (is (thrown? AssertionError (ph/split-piece piece length))))))
+          (is (str (ph/piece-string piece1) (ph/piece-string piece2)))))))) 
     
 (deftest test-table
   (let [table (ph/make-table ["Hello" " " "World"])]
@@ -66,7 +68,7 @@
       (is (= 0 (:curr-pos dactyl)))
       (is (= '() (:back dactyl))))
     (testing "current/dactyl pos/text functions functions"
-      (is (= (ph/make-piece "Hello") (ph/curr dactyl)))
+      (is (= (ph/make-string-piece "Hello") (ph/curr dactyl)))
       (is (= "Hello" (ph/curr-text dactyl)))
       (is (= "Hello" (ph/curr-text-post dactyl)))
       (is (= 5 (ph/curr-pos-post dactyl)))
@@ -113,12 +115,12 @@
                               d'))]
             (reduce test-goto dactyl jumps)))
         (testing "bounce :right"
-          (let [d8    (tr dactyl [(dec length)])
-                d8'   (tr dactyl [length])
-                d8''  (tr dactyl [(dec length) 1])
+          (let [d8    (tr dactyl [length])
+                d8'   (tr dactyl [(inc length)])
+                d8''  (tr dactyl [length 1])
                 d8''' (tr dactyl [100])]
               (is (= nil (:bounce d8))) ; sanity
-              (is (= d8' (assoc d8 :bounce :right)))
+              (is (= (assoc d8 :bounce :right) d8'))
               (is (= d8' d8'' d8'''))))))
     (testing "Traverse right and left"
       (let [ds-right (take length (iterate ph/nudge-right dactyl))
@@ -171,9 +173,7 @@
                          (ph/traverse-right 6)
                          (ph/delete-to #(ph/goto % 0))
                          (ph/text-after 100))))
-      ;; this is an oddity, as we don't have end-of-buffer handling yet, so
-      ;; can't delete the final character...!
-      (is (= "Hellod" (-> dactyl
+      (is (= "Hello" (-> dactyl
                          (ph/traverse-right 5)
                          (ph/delete-to #(ph/traverse-right % 100))
                          (ph/goto 0) (ph/text-after 100)))))

@@ -2,38 +2,49 @@
   (:require [taoensso.truss :as truss :refer (have have! have?)])
   (:gen-class))
 
-(defrecord Piece [string from to])
-(defn make-piece [string]
+(defprotocol Piece
+  (piece-length [p])
+  (piece-string [p])
+  (split-piece [p at]))
+
+(defrecord StringPiece [string from to]
+  Piece
+  (piece-length [piece]
+    (- (:to piece) (:from piece)))
+
+  (piece-string [piece]
+    (let [{:keys [:string :from :to]} piece]
+      (subs string from to)))
+
+  (split-piece [piece at]
+    {:pre [(<= 0 at)
+           (< at (piece-length piece))]}
+    (let [length (piece-length piece)]
+      (if (zero? at)
+        [piece]
+        (let [pivot (+ at (:from piece))
+              before (assoc piece :to pivot)
+              after (assoc piece :from pivot)]
+         [before after])))))
+
+(defn make-string-piece [string]
   {:pre [(string? string)]}
-  (Piece. string 0 (count string)))
+  (StringPiece. string 0 (count string)))
 
-(defn piece-length [piece]
-  {:pre [(instance? Piece piece)]}
-  (- (:to piece) (:from piece)))
-
-(defn piece-string [piece]
-  {:pre [(instance? Piece piece)]}
-  (let [{:keys [:string :from :to]} piece]
-    (subs string from to)))
-
-(defn split-piece [piece at]
-  {:pre [(instance? Piece piece)
-         (<= 0 at)
-         (< at (piece-length piece))]}
-  (let [length (piece-length piece)]
-    (if (zero? at) 
-      [piece]
-      (let [pivot (+ at (:from piece))
-            before (assoc piece :to pivot)
-            after (assoc piece :from pivot)]
-       [before after]))))
+(def END-OF-BUFFER
+  (reify
+    Object
+    (toString [_] "<END-OF-BUFFER>")
+    Piece
+    (piece-length [_] 1)
+    (piece-string [_] "")
+    (split-piece [p _] [p])))
 
 (defrecord Table [pieces])
 (def table? (partial instance? Table))
 (defn make-table [strings]
   {:pre [(every? string? strings)]}
-  (Table. (into '() (reverse 
-                      (map make-piece strings)))))
+  (Table. (concat (map make-string-piece strings) [END-OF-BUFFER])))
 
 (defn show-table [table]
   {:pre [(table? table)]}
@@ -61,10 +72,7 @@
 
 (defn curr-text [dactyl]
   {:pre [(dactyl? dactyl)]}
-  (let [piece (curr dactyl)
-        {:keys [string from to]} piece
-        {:keys [curr-pos]} dactyl]
-    (subs string from to)))
+  (piece-string (curr dactyl)))
 
 (defn curr-text-post [dactyl]
   {:pre [(dactyl? dactyl)]}
@@ -225,12 +233,11 @@
   {:pre [(dactyl? dactyl)
          (string? string)]
    :post [dactyl?]}
-  (let [piece (make-piece string)
+  (let [piece (make-string-piece string)
         dactyl (split-dactyl dactyl)]
     (update dactyl :pieces #(conj % piece))))
 
 ; next steps
-  ; end-of-buffer handling
   ; rename Dactyl -> Phalange
   ; unzip & print whole buffer
   ; insert
