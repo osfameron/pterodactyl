@@ -220,18 +220,9 @@
                :curr-pos 0
                :acc-pos (dactyl-pos dactyl))))))
 
-(defn delete-to [dactyl movement]
+(defn cut [dactyl movement]
   {:pre [(dactyl? dactyl)
-         (fn? movement)]
-   :post [dactyl?]}
-  (let [other (have dactyl? (movement dactyl))
-        [d1 d2] (map split-dactyl (sort-by dactyl-pos [dactyl other]))]
-      (assoc d1 :pieces (:pieces d2))))
-
-(defn copy-range [dactyl movement]
-  {:pre [(dactyl? dactyl)
-         (fn? movement)]
-   :post [table?]}
+         (fn? movement)]}
   ;; split both origin and end point, and make sure that both dactyls
   ;; have both splits in their piece lists by moving *back* to origin
   ;; this allows us to take-while identical? instead of having to do
@@ -241,8 +232,12 @@
         dactyl (goto other (dactyl-pos dactyl))
         [d1 d2] (sort-by dactyl-pos [dactyl other])
         target (first (:pieces d2))
-        pieces (vec (take-while #(not (identical? % target)) (:pieces d1)))] 
-    (Table. pieces)))
+        cut-pieces (vec (take-while #(not (identical? % target)) (:pieces d1))) 
+        deleted-dactyl (assoc d1 :pieces (:pieces d2))]
+    [deleted-dactyl cut-pieces])) 
+
+(def delete-to (comp first cut))
+(def copy-range (comp ->Table second cut))
 
 (defn insert [dactyl string]
   {:pre [(dactyl? dactyl)
@@ -254,7 +249,6 @@
 
 ; next steps
   ; remove Table abstraction (is just a list of Pieces)
-  ; delete/copy in single function.  (Q: where to store the buffer?)
   ; rename Dactyl -> Phalange
   ; protocol for Phalange
   ; convenience functions for whole buffer (from start / point)
