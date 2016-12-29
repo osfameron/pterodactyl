@@ -253,10 +253,16 @@
     (update dactyl :pieces (partial cons piece))))
 
 ; next steps
+  ; remove Table abstraction (is just a list of Pieces)
+  ; delete/copy in single function.  (Q: where to store the buffer?)
   ; rename Dactyl -> Phalange
-  ; unzip & print whole buffer
-  ; insert
+  ; protocol for Phalange
+  ; convenience functions for whole buffer (from start / point)
+  ; marks
+    ;; go to mark
+    ;; (does this require storage within each piece?  or just phalange?)
+  ; accumulators
+    ;; probably requires storage in each piece?
+    ;; go to line
+    ;; go up/down (strictly doesn't need accumulator)
   ; text-before?
-  ; go to line
-  ; go up/down
-  ; go to mark
