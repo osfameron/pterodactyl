@@ -196,4 +196,33 @@
       (is (= "o Worl" (-> dactyl
                          (ph/traverse-right 4)
                          (ph/copy-range #(ph/goto % 10))
-                         (ph/show-table)))))))
+                         (ph/show-table)))))
+    (testing "right-till"
+      (is (= "o World" (-> dactyl
+                          (ph/right-till "o")
+                          (ph/text-after 100))))
+      (is (= "orld" (-> dactyl
+                          (ph/right-till "o")
+                          (ph/right-till "o")
+                          (ph/text-after 100))))
+      (is (= "" (-> dactyl
+                          (ph/right-till "o")
+                          (ph/right-till "o")
+                          (ph/right-till "o")
+                          (ph/text-after 100)))))
+    (testing "left-till"
+      (is (= "orld" (-> dactyl
+                          (ph/traverse-right 100)
+                          (ph/left-till "o")
+                          (ph/text-after 100))))
+      (is (= "o World" (-> dactyl
+                          (ph/traverse-right 100)
+                          (ph/left-till "o")
+                          (ph/left-till "o")
+                          (ph/text-after 100))))
+      (is (= "Hello World" (-> dactyl
+                             (ph/traverse-right 100)
+                             (ph/left-till "o")
+                             (ph/left-till "o")
+                             (ph/left-till "o")
+                             (ph/text-after 100)))))))

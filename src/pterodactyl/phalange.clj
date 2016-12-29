@@ -159,15 +159,6 @@
 (defn nudge-left [dactyl]
   (traverse-left dactyl 1))
 
-(defn goto [dactyl pos]
-  {:pre [(dactyl? dactyl)
-         (<= 0 pos)]}
-  (let [curr-pos (dactyl-pos dactyl)]
-    (cond
-      (= pos curr-pos) dactyl
-      (> pos curr-pos) (traverse-right dactyl (- pos curr-pos))
-      (< pos curr-pos) (traverse-left dactyl (- curr-pos pos)))))
-   
 (defn text-after
   ([dactyl len] 
    {:pre [(dactyl? dactyl)
@@ -186,6 +177,31 @@
           (- len (count chunk))
           (conj acc chunk)))))) 
 
+(defn till [dactyl dir string]
+  {:pre [(dactyl? dactyl)
+         (string? string)]}
+  (let [nudge (have (dir {:left nudge-left, :right nudge-right}))
+        length (count string)]
+    (loop [d dactyl]
+      (let [d' (nudge d)]
+        (if (or 
+              (= string (text-after d' length))
+              (:bounce d'))
+            d'
+            (recur d'))))))
+
+(def right-till #(till %1 :right %2))
+(def left-till  #(till %1 :left %2))
+
+(defn goto [dactyl pos]
+  {:pre [(dactyl? dactyl)
+         (<= 0 pos)]}
+  (let [curr-pos (dactyl-pos dactyl)]
+    (cond
+      (= pos curr-pos) dactyl
+      (> pos curr-pos) (traverse-right dactyl (- pos curr-pos))
+      (< pos curr-pos) (traverse-left dactyl (- curr-pos pos)))))
+   
 (defn split-dactyl [dactyl]
   {:pre [(dactyl? dactyl)]
    :post [dactyl?]}
