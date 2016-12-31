@@ -56,6 +56,14 @@
        (is (= ~pos# (ph/dactyl-pos ~d)))
        (is (= (subs ~'string ~pos#) (ph/text-after ~d 100)))))
 
+; vaguely related to as-> except it doesn't do threading,
+; has a hard-coded anaphoric 'it' and simply returns the value
+; at end
+(defmacro and-test [expr & forms]
+  `(let [~'it ~expr]
+     ~@forms
+     ~'it))
+
 (deftest test-dactyl
   (let [strings ["Hello" " " "World"]
         table (ph/make-table strings)
@@ -225,4 +233,32 @@
                              (ph/left-till "o")
                              (ph/left-till "o")
                              (ph/left-till "o")
-                             (ph/text-after 100)))))))
+                             (ph/text-after 100)))))
+    (testing "rows and columns"
+      (let [dactyl 
+              (-> ["APRIL is the cruellest month, breeding\n"
+                   "Lilacs out of the dead land, mixing\n"
+                   "Memory and desire, stirring\n"
+                   "Dull roots with spring rain.\n"
+                   "Winter kept us warm, covering\n"
+                   "Earth in forgetful snow, feeding\n"
+                   "A little life with dried tubers.\n"]
+                 (ph/make-table)
+                 (ph/make-dactyl))]
+        (testing "col-pos"
+          (-> dactyl
+              (and-test
+                (is (= 0 (ph/col-pos it))))
+              (ph/traverse-right 5)
+              (and-test
+                (is (= 5 (ph/col-pos it))))
+              (ph/go-start-of-line)
+              (and-test
+                (is (= 0 (ph/col-pos it))))
+              (ph/right-till "kept")
+              (and-test
+                (is (= 7 (ph/col-pos it))))
+              (ph/go-end-of-line)
+              (and-test
+                (is (= 29 (ph/col-pos it)))
+                (is (= "\n" (ph/text-after it 1))))))))))

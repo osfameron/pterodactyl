@@ -201,7 +201,60 @@
       (= pos curr-pos) dactyl
       (> pos curr-pos) (traverse-right dactyl (- pos curr-pos))
       (< pos curr-pos) (traverse-left dactyl (- curr-pos pos)))))
-   
+
+; mostly cargo culted from (some->)
+(defmacro =>
+  "When expr is not :bounce, threads it into the first form (via ->),
+  and when that result is not :bounce, through the next etc"
+  [expr & forms]
+  (let [g (gensym)
+        steps (map (fn [step] `(if (:bounce ~g) ~g (-> ~g ~step)))
+                   forms)]
+    `(let [~g ~expr
+           ~@(interleave (repeat g) (butlast steps))]
+       ~(if (empty? steps)
+          g
+          (last steps)))))
+
+(defn go-start-of-line [dactyl]
+  (=> dactyl
+      (left-till "\n")
+      (nudge-right)))
+
+(defn go-end-of-line [dactyl]
+  (=> dactyl
+      (right-till "\n")))
+
+(defn go-start-of-prev-line [dactyl]
+  (=> dactyl
+      (go-start-of-line)
+      (nudge-left)
+      (go-start-of-line)))
+
+(defn go-start-of-next-line [dactyl]
+  (=> dactyl
+      (go-end-of-line)
+      (nudge-right)))
+
+(defn dactyl-delta [d1 d2]
+  (apply - (map dactyl-pos [d2 d1])))
+
+(defn col-pos [dactyl]
+  (let [start (go-start-of-line dactyl)]
+    (dactyl-delta start dactyl)))
+
+(defn go-col [dactyl col]
+  {:pre [(dactyl? dactyl)
+         (<= 0 col)]}
+  (let [current-col (col-pos dactyl)
+        eol (go-end-of-line dactyl)
+        delta (- col current-col)]
+    (cond
+      (= col current-col) dactyl
+      (> col (col-pos eol)) eol
+      (> col current-col) (traverse-right (dactyl delta))
+      (< col current-col) (traverse-left  (dactyl (- delta))))))
+
 (defn split-dactyl [dactyl]
   {:pre [(dactyl? dactyl)]
    :post [dactyl?]}
