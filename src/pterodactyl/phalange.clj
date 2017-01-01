@@ -117,6 +117,10 @@
                :acc-pos (+ acc-pos (piece-length old)) 
                :curr-pos 0)))))
 
+(defn unbounce [dactyl]
+  {:pre [(dactyl? dactyl)]}
+  (dissoc dactyl :bounce))
+
 ; For now, we'll clear the bounce flag at the beginning of a traverse
 ; I'm assuming this is a noop if already not set - e.g. won't create
 ; new datastructure?  In any case, this will probably move to outer
@@ -124,7 +128,7 @@
 (defn traverse-right [dactyl count]
   {:pre [(dactyl? dactyl)
          (<= 0 count)]}
-  (let [dactyl (dissoc dactyl :bounce) 
+  (let [dactyl (unbounce dactyl)
         avail (curr-pos-post dactyl)]
     (cond
       (zero? count) dactyl
@@ -141,7 +145,7 @@
 (defn traverse-left [dactyl count]
   {:pre [(dactyl? dactyl)
          (<= 0 count)]}
-  (let [dactyl (dissoc dactyl :bounce) 
+  (let [dactyl (unbounce dactyl)
         avail (:curr-pos dactyl)]
     (cond
       (zero? count) dactyl
@@ -205,7 +209,9 @@
 ; mostly cargo culted from (some->)
 (defmacro =>
   "When expr is not :bounce, threads it into the first form (via ->),
-  and when that result is not :bounce, through the next etc"
+  and when that result is not :bounce, through the next etc.
+  NB: => is GREEDY, so will return the last :bounce'd dactyl.
+  See `traverse` for a non-greedy algorithm."
   [expr & forms]
   (let [g (gensym)
         steps (map (fn [step] `(if (:bounce ~g) ~g (-> ~g ~step)))
@@ -216,25 +222,38 @@
           g
           (last steps)))))
 
+(defn traverse [dactyl traversals]
+  "non-greedy :bounce short-circuiting traversal"
+  (reduce
+    (fn [d f]
+      (let [d' (f d)]
+        (if-let [bounce (:bounce d')]
+          (reduced (assoc d :bounce bounce))
+          d')))
+    (unbounce dactyl)
+    traversals))
+
+(defn go-end-of-prev-line [dactyl]
+  (traverse dactyl [#(left-till % "\n")]))
+
+(def debugging (atom true))
+(defn debug [dactyl & [tag]]
+  "debug function which returns dactyl, allowing it to be easily added into => or traverse pipeline"
+  (when @debugging
+    (println (str "DEBUG " tag " => " {:curr-pos (:curr-pos dactyl) :dpos (dactyl-pos dactyl)} " " (text-after dactyl 5) "...")))
+  dactyl)
+  
+
 (defn go-start-of-line [dactyl]
-  (=> dactyl
-      (left-till "\n")
-      (nudge-right)))
+  (=> dactyl (left-till "\n")
+             (nudge-right)))
 
 (defn go-end-of-line [dactyl]
   (=> dactyl
       (right-till "\n")))
 
-(defn go-start-of-prev-line [dactyl]
-  (=> dactyl
-      (go-start-of-line)
-      (nudge-left)
-      (go-start-of-line)))
-
 (defn go-start-of-next-line [dactyl]
-  (=> dactyl
-      (go-end-of-line)
-      (nudge-right)))
+  (traverse dactyl [go-end-of-line nudge-right]))
 
 (defn dactyl-delta [d1 d2]
   (apply - (map dactyl-pos [d2 d1])))
@@ -248,12 +267,31 @@
          (<= 0 col)]}
   (let [current-col (col-pos dactyl)
         eol (go-end-of-line dactyl)
+        eol-pos (col-pos eol)
         delta (- col current-col)]
     (cond
       (= col current-col) dactyl
-      (> col (col-pos eol)) eol
-      (> col current-col) (traverse-right (dactyl delta))
-      (< col current-col) (traverse-left  (dactyl (- delta))))))
+      (< col current-col) (traverse-left  dactyl (- delta))
+      (> col eol-pos)     eol
+      (> col current-col) (traverse-right dactyl delta))))
+
+(defn traverse-down
+  ([dactyl]
+   (traverse-down dactyl 1))
+  ([dactyl steps]
+   (let [col (col-pos dactyl)]
+     (-> dactyl
+         (traverse (repeat steps go-start-of-next-line))
+         (go-col col)))))
+
+(defn traverse-up
+  ([dactyl]
+   (traverse-up dactyl 1))
+  ([dactyl steps]
+   (let [col (col-pos dactyl)]
+     (-> dactyl
+         (traverse (repeat steps go-end-of-prev-line))
+         (go-col col)))))
 
 (defn split-dactyl [dactyl]
   {:pre [(dactyl? dactyl)]
@@ -302,7 +340,7 @@
 
 ; next steps
   ; remove Table abstraction (is just a list of Pieces)
-  ; rename Dactyl -> Phalange
+  ; rename Dactyl -> Phalange (or not)
   ; protocol for Phalange
   ; convenience functions for whole buffer (from start / point)
   ; marks

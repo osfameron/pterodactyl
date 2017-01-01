@@ -96,6 +96,11 @@ movements
               (:search "foo")
               (:select)
               (:replace "bar"))
+      f) cp datomic.  So we can use the dactyl as a value, but to interact with it have to call
+         a `transact` like method, which attempts to apply the transformation, a bit like update!
+         As a dactyl can know what the *boundaries* of any moves/changes made have been since last time,
+         it could also trivially check that those things don't seem to have changed, and error/warn
+         if they have?
 
           
 Current vim bindings.  
@@ -320,6 +325,8 @@ NB: the fact that I'm adding
   {:pre [(#(instance? Dactyl %) dactyl)]}
 to each function does suggest I should be implementing a protocol instead?
 
+
+
 Types of function
 =================
 
@@ -331,6 +338,15 @@ NB: implicit parameters may be a Really Bad Idea, will reconsider
     (hmm, movements get dactyl, then call (&dactyl :movement) presumably
      there is a limited core set of movements that the others bootstrap
      off)
+  - NB: we need to distinguish
+     a) greedy/non-greedy movements
+      (e.g. does bounce stop processing?  stop at edge?  or stop at previous location)
+      (currently distinction between 
+        => macro (greedy) 
+        traverse (non-greedy)
+      but both should handle both use-cases)
+     b) inner/outer position
+      
  - text actions (def-action) implicit &dactyl, &count
   - call with (call ...)
  - accumulator (def-accumulator) "string" -> {:thing count}

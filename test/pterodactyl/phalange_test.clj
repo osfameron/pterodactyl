@@ -262,3 +262,28 @@
               (and-test
                 (is (= 29 (ph/col-pos it)))
                 (is (= "\n" (ph/text-after it 1))))))))))
+
+(comment
+  (def d (atom (-> ["APRIL is the cruellest month, breeding\n"
+                    "Lilacs out of the dead land, mixing\n"
+                    "Memory and desire, stirring\n"
+                    "Dull roots with spring rain.\n"
+                    "Winter kept us warm, covering\n"
+                    "Earth in forgetful snow, feeding\n"
+                    "A little life with dried tubers."]
+                  (ph/make-table)
+                  (ph/make-dactyl))))
+  (defn m [move & args]
+    (let [d' (swap! d #(apply move (concat [%] args)))]
+      (println {:dactyl-pos (ph/dactyl-pos d'), :col-pos (ph/col-pos d')})
+      (println (ph/text-after d' 10))))
+
+  (doseq [
+          line (range 0 7)
+          col  (range 0 10)]
+       (-> @d
+           (ph/traverse-down 7)
+           (ph/traverse-right col)
+           (ph/traverse-up line)
+           (and-test
+              (println (str line col (ph/text-after it 10)))))))
