@@ -181,6 +181,11 @@
           (- len (count chunk))
           (conj acc chunk)))))) 
 
+(defn all-text [dactyl]
+  {:pre [(dactyl? dactyl)]}
+  ;; stupid, placeholder, partial implementation
+  (-> dactyl (traverse-left 1000) (text-after 1000)))
+
 (defn till [dactyl dir string]
   {:pre [(dactyl? dactyl)
          (string? string)]}
@@ -261,6 +266,16 @@
 (defn col-pos [dactyl]
   (let [start (go-start-of-line dactyl)]
     (dactyl-delta start dactyl)))
+
+(defn row-pos 
+  ([dactyl]
+   (row-pos dactyl 0))
+
+  ([dactyl c]
+   (let [prev (go-end-of-prev-line dactyl)] 
+     (if (:bounce prev)
+        c
+        (recur prev (inc c))))))
 
 (defn go-col [dactyl col]
   {:pre [(dactyl? dactyl)

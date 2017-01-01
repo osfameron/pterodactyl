@@ -1,6 +1,7 @@
 (ns pterodactyl.phalange-test
   (:require [clojure.test :refer :all]
-            [pterodactyl.phalange :as ph])
+            [pterodactyl.phalange :as ph]
+            [lanterna.screen :as s])
   (:import pterodactyl.phalange.StringPiece
            pterodactyl.phalange.Piece
            pterodactyl.phalange.Table
@@ -263,21 +264,53 @@
                 (is (= 29 (ph/col-pos it)))
                 (is (= "\n" (ph/text-after it 1))))))))))
 
-(comment
-  (def d (atom (-> ["APRIL is the cruellest month, breeding\n"
-                    "Lilacs out of the dead land, mixing\n"
-                    "Memory and desire, stirring\n"
-                    "Dull roots with spring rain.\n"
-                    "Winter kept us warm, covering\n"
-                    "Earth in forgetful snow, feeding\n"
-                    "A little life with dried tubers."]
-                  (ph/make-table)
-                  (ph/make-dactyl))))
-  (defn m [move & args]
-    (let [d' (swap! d #(apply move (concat [%] args)))]
-      (println {:dactyl-pos (ph/dactyl-pos d'), :col-pos (ph/col-pos d')})
-      (println (ph/text-after d' 10))))
+; some examples for interacting with a visual editor
+; no key-bindings yet.  Call like so, from repl:
+;
+; (require '[pterodactyl.phalange :as ph])
+; (require '[pterodactyl.phalange.test :as pt])
+; (pt/init-screen)
+; (pt/m ph/traverse-right 1)
+;
+(def d (atom (-> ["APRIL is the cruellest month, breeding\n"
+                  "Lilacs out of the dead land, mixing\n"
+                  "Memory and desire, stirring\n"
+                  "Dull roots with spring rain.\n"
+                  "Winter kept us warm, covering\n"
+                  "Earth in forgetful snow, feeding\n"
+                  "A little life with dried tubers."]
+                (ph/make-table)
+                (ph/make-dactyl))))
 
+(def screen (atom nil))
+
+(defn init-screen []
+  (let [scr (s/get-screen)]
+    (s/start scr)
+    (reset! screen scr)))
+
+(defn clear-screen []
+  (let [[width height] (s/get-size @screen) 
+        blank (apply str (repeat width " "))]
+    (doseq [line (range height)] 
+      (s/put-string @screen 0 line blank)))) 
+
+(defn draw-screen [dactyl]
+  (let [x (ph/col-pos dactyl)
+        y (ph/row-pos dactyl)]
+    (clear-screen)
+    (doseq [[line text] (map list (range) (clojure.string/split-lines (ph/all-text dactyl)))]
+      (s/put-string @screen 0 line text)
+      (s/move-cursor @screen x y))
+    (s/redraw @screen)))
+
+(defn m [move & args]
+  (let [d' (swap! d #(apply move (concat [%] args)))]
+    (println d')
+    (draw-screen d')))
+
+(comment
+  (draw-screen @d)
   (doseq [
           line (range 0 7)
           col  (range 0 10)]
