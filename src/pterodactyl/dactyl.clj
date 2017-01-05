@@ -86,7 +86,7 @@
   {:pre [(dactyl? dactyl)]}
   (+ (:acc-pos dactyl) (:curr-pos dactyl)))
 
-(defn traverse-back [dactyl]
+(defn traverse-prev [dactyl]
   {:pre [(dactyl? dactyl)]}
   (let [{:keys [:back :pieces :acc-pos]} dactyl]
     (if (empty? back)
@@ -100,7 +100,7 @@
                :acc-pos (- acc-pos length)
                :curr-pos last-pos)))))
 
-(defn traverse-forward [dactyl]
+(defn traverse-next [dactyl]
   {:pre [(dactyl? dactyl)]}
   (let [{:keys [:back :pieces :acc-pos]} dactyl
         next (rest pieces)]
@@ -121,43 +121,45 @@
 ; I'm assuming this is a noop if already not set - e.g. won't create
 ; new datastructure?  In any case, this will probably move to outer
 ; controller framework eventually.
-(defn traverse-right [dactyl count]
-  {:pre [(dactyl? dactyl)
-         (<= 0 count)]}
-  (let [dactyl (unbounce dactyl)
-        avail (curr-pos-post dactyl)]
-    (cond
-      (zero? count) dactyl
-      (< count avail) (update dactyl :curr-pos (partial + count))
-      :else 
-        (let [next (traverse-forward dactyl)
-              last-pos (dec (piece-length (curr dactyl)))]
-          (if (nil? next)
-            (assoc dactyl
-                   :bounce :right,
-                   :curr-pos last-pos)
-            (recur next (- count avail)))))))
+(defn traverse-forward 
+  ([dactyl]
+   (traverse-forward dactyl 1))
 
-(defn traverse-left [dactyl count]
-  {:pre [(dactyl? dactyl)
-         (<= 0 count)]}
-  (let [dactyl (unbounce dactyl)
-        avail (:curr-pos dactyl)]
-    (cond
-      (zero? count) dactyl
-      (<= count avail) (update dactyl :curr-pos #(- % count))
-      :else 
-        (let [next (traverse-back dactyl)
-              steps-to-prev-piece (inc avail)]
-          (if (nil? next)
-            (assoc dactyl :bounce :left, :curr-pos 0)
-            (recur next (- count steps-to-prev-piece)))))))
+  ([dactyl count]
+   {:pre [(dactyl? dactyl)
+          (<= 0 count)]}
+   (let [dactyl (unbounce dactyl)
+         avail (curr-pos-post dactyl)]
+     (cond
+       (zero? count) dactyl
+       (< count avail) (update dactyl :curr-pos (partial + count))
+       :else 
+         (let [next (traverse-next dactyl)
+               last-pos (dec (piece-length (curr dactyl)))]
+           (if (nil? next)
+             (assoc dactyl
+                    :bounce :right,
+                    :curr-pos last-pos)
+             (recur next (- count avail))))))))
 
-(defn nudge-right [dactyl]
-  (traverse-right dactyl 1))
-
-(defn nudge-left [dactyl]
-  (traverse-left dactyl 1))
+(defn traverse-backward 
+  ([dactyl]
+   (traverse-backward dactyl 1))
+  
+  ([dactyl count]
+   {:pre [(dactyl? dactyl)
+          (<= 0 count)]}
+   (let [dactyl (unbounce dactyl)
+         avail (:curr-pos dactyl)]
+     (cond
+       (zero? count) dactyl
+       (<= count avail) (update dactyl :curr-pos #(- % count))
+       :else 
+         (let [next (traverse-prev dactyl)
+               steps-to-prev-piece (inc avail)]
+           (if (nil? next)
+             (assoc dactyl :bounce :left, :curr-pos 0)
+             (recur next (- count steps-to-prev-piece))))))))
 
 (defn text-after
   ([dactyl len] 
@@ -173,19 +175,19 @@
       (let [text (curr-text-post dactyl)
             chunk (subs text 0 (min len (count text)))]
         (recur
-          (traverse-forward dactyl)
+          (traverse-next dactyl)
           (- len (count chunk))
           (conj acc chunk)))))) 
 
 (defn all-text [dactyl]
   {:pre [(dactyl? dactyl)]}
   ;; stupid, placeholder, partial implementation
-  (-> dactyl (traverse-left 1000) (text-after 1000)))
+  (-> dactyl (traverse-backward 1000) (text-after 1000)))
 
 (defn till [dactyl dir string]
   {:pre [(dactyl? dactyl)
          (string? string)]}
-  (let [nudge (have (dir {:left nudge-left, :right nudge-right}))
+  (let [nudge (have (dir {:left traverse-backward, :right traverse-forward}))
         length (count string)]
     (loop [d dactyl]
       (let [d' (nudge d)]
@@ -204,8 +206,8 @@
   (let [curr-pos (dactyl-pos dactyl)]
     (cond
       (= pos curr-pos) dactyl
-      (> pos curr-pos) (traverse-right dactyl (- pos curr-pos))
-      (< pos curr-pos) (traverse-left dactyl (- curr-pos pos)))))
+      (> pos curr-pos) (traverse-forward dactyl (- pos curr-pos))
+      (< pos curr-pos) (traverse-backward dactyl (- curr-pos pos)))))
 
 ; mostly cargo culted from (some->)
 (defmacro =>
@@ -247,14 +249,14 @@
 
 (defn go-start-of-line [dactyl]
   (=> dactyl (left-till "\n")
-             (nudge-right)))
+             (traverse-forward)))
 
 (defn go-end-of-line [dactyl]
   (=> dactyl
       (right-till "\n")))
 
 (defn go-start-of-next-line [dactyl]
-  (traverse dactyl [go-end-of-line nudge-right]))
+  (traverse dactyl [go-end-of-line traverse-forward]))
 
 (defn dactyl-delta [d1 d2]
   (apply - (map dactyl-pos [d2 d1])))
@@ -282,9 +284,9 @@
         delta (- col current-col)]
     (cond
       (= col current-col) dactyl
-      (< col current-col) (traverse-left  dactyl (- delta))
+      (< col current-col) (traverse-backward  dactyl (- delta))
       (> col eol-pos)     eol
-      (> col current-col) (traverse-right dactyl delta))))
+      (> col current-col) (traverse-forward dactyl delta))))
 
 (defn traverse-down
   ([dactyl]
@@ -350,11 +352,11 @@
     (update dactyl :pieces (partial cons piece))))
 
 ; next steps
-  ; protocol for Phalange
+  ; protocol for Dactyl
   ; convenience functions for whole buffer (from start / point)
   ; marks
     ;; go to mark
-    ;; (does this require storage within each piece?  or just phalange?)
+    ;; (does this require storage within each piece?  or just dactyl?)
   ; accumulators
     ;; probably requires storage in each piece?
     ;; go to line

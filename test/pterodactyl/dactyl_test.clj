@@ -71,24 +71,24 @@
       (is (= 5 (d/curr-pos-post dactyl)))
       (is (= "" (d/curr-text-pre dactyl)))
       (test-dactyl-at dactyl 0))
-    (testing "traverse-forward"
-      (let [d2 (d/traverse-forward dactyl)]
+    (testing "traverse-next"
+      (let [d2 (d/traverse-next dactyl)]
         (is (= " " (d/curr-text d2)))
         (is (= " " (d/curr-text-post d2)))
         (is (= 1 (d/curr-pos-post d2)))
         (is (= "" (d/curr-text-pre d2)))
         (test-dactyl-at d2 5)))
-    (testing "traverse-forward then traverse-back"
-      (let [d3 (-> dactyl d/traverse-forward d/traverse-back)]
+    (testing "traverse-next then traverse-pretraverse-prev"
+      (let [d3 (-> dactyl d/traverse-next d/traverse-prev)]
         (is (= (assoc dactyl :curr-pos 4) d3))
         (test-dactyl-at d3 4)
         (is (= "Hello" (d/curr-text d3)))
         (is (= "o" (d/curr-text-post d3)))))
-    (testing "traverse-right"
-      (let [tr (fn [d jumps] (reduce d/traverse-right d jumps))]
+    (testing "traverse-forward"
+      (let [tr (fn [d jumps] (reduce d/traverse-forward d jumps))]
         (testing "jump in one go"
           (doseq [i (range length)]
-            (let [d4 (d/traverse-right dactyl i)]
+            (let [d4 (d/traverse-forward dactyl i)]
               (test-dactyl-at d4 i))))
         (testing "jump by 1s"
           (doseq [i (range length)]
@@ -120,9 +120,9 @@
               (is (= (assoc d8 :bounce :right) d8'))
               (is (= d8' d8'' d8'''))))))
     (testing "Traverse right and left"
-      (let [ds-right (take length (iterate d/nudge-right dactyl))
-            dactyl-end (d/traverse-right dactyl (dec length))
-            ds-left  (take length (iterate d/nudge-left dactyl-end))
+      (let [ds-right (take length (iterate d/traverse-forward dactyl))
+            dactyl-end (d/traverse-forward dactyl (dec length))
+            ds-left  (take length (iterate d/traverse-backward dactyl-end))
             exp-dactyl-pos's    (range length)
             exp-curr-pos's      [0 1 2 3 4 0 0 1 2 3 4]
             exp-curr-pos-post's [5 4 3 2 1 1 5 4 3 2 1]
@@ -142,7 +142,7 @@
     (testing "Assertion errors"
       (is (thrown? AssertionError (d/strings->dactyl "Single"))))
     (testing "split-dactyl"
-      (doseq [d (take length (iterate d/nudge-right dactyl))]
+      (doseq [d (take length (iterate d/traverse-forward dactyl))]
         (let [d-split (d/split-dactyl d)]
           (if (zero? (:curr-pos d))
             (is (= d d-split))
@@ -151,34 +151,34 @@
               (is (= 0 (:curr-pos d-split)))
               (is (= (+ (:acc-pos d) (:curr-pos d)) (:acc-pos d-split)))
               (is (= (rest (:pieces d)) (rest (:pieces d-split))))
-              (let [prev (d/traverse-back d-split)
-                    left (d/nudge-left d-split)]
+              (let [prev (d/traverse-prev d-split)
+                    left (d/traverse-backward d-split)]
                 (is (= prev left))
                 (is (= (:acc-pos d) (:acc-pos prev)))
                 (is (= (dec (:curr-pos d)) (:curr-pos prev)))))))))
     (testing "delete-to"
       (is (= "Helld" (-> dactyl 
-                         (d/traverse-right 4)
+                         (d/traverse-forward 4)
                          (d/delete-to #(d/goto % 10))
                          (d/goto 0) (d/text-after 100))))
       (is (= "Hell World" (-> dactyl
-                             (d/traverse-right 5)
-                             (d/delete-to d/nudge-left)
+                             (d/traverse-forward 5)
+                             (d/delete-to d/traverse-backward)
                              (d/goto 0) (d/text-after 100))))
       (is (= "World" (-> dactyl
-                         (d/traverse-right 6)
+                         (d/traverse-forward 6)
                          (d/delete-to #(d/goto % 0))
                          (d/text-after 100))))
       (is (= "Hello" (-> dactyl
-                         (d/traverse-right 5)
-                         (d/delete-to #(d/traverse-right % 100))
+                         (d/traverse-forward 5)
+                         (d/delete-to #(d/traverse-forward % 100))
                          (d/goto 0) (d/text-after 100)))))
     (testing "insert"
       (is (= "So, Hello World" (-> dactyl
                                    (d/insert "So, ")
                                    (d/goto 0) (d/text-after 100))))
       (is (= "Hello there World" (-> dactyl
-                                     (d/traverse-right 6)
+                                     (d/traverse-forward 6)
                                      (d/insert "there ")
                                      (d/goto 0) (d/text-after 100)))))
     (testing "copy-range"
@@ -186,11 +186,11 @@
                     (d/copy-range identity)
                     (d/all-text))))
       (is (= "o" (-> dactyl
-                     (d/traverse-right 4)
-                     (d/copy-range d/nudge-right)
+                     (d/traverse-forward 4)
+                     (d/copy-range d/traverse-forward)
                      (d/all-text))))
       (is (= "o Worl" (-> dactyl
-                         (d/traverse-right 4)
+                         (d/traverse-forward 4)
                          (d/copy-range #(d/goto % 10))
                          (d/all-text)))))
     (testing "right-till"
@@ -208,16 +208,16 @@
                           (d/text-after 100)))))
     (testing "left-till"
       (is (= "orld" (-> dactyl
-                          (d/traverse-right 100)
+                          (d/traverse-forward 100)
                           (d/left-till "o")
                           (d/text-after 100))))
       (is (= "o World" (-> dactyl
-                          (d/traverse-right 100)
+                          (d/traverse-forward 100)
                           (d/left-till "o")
                           (d/left-till "o")
                           (d/text-after 100))))
       (is (= "Hello World" (-> dactyl
-                             (d/traverse-right 100)
+                             (d/traverse-forward 100)
                              (d/left-till "o")
                              (d/left-till "o")
                              (d/left-till "o")
@@ -236,7 +236,7 @@
           (-> dactyl
               (and-test
                 (is (= 0 (d/col-pos it))))
-              (d/traverse-right 5)
+              (d/traverse-forward 5)
               (and-test
                 (is (= 5 (d/col-pos it))))
               (d/go-start-of-line)
@@ -253,10 +253,10 @@
 ; some examples for interacting with a visual editor
 ; no key-bindings yet.  Call like so, from repl:
 ;
-; (require '[pterodactyl.phalange :as ph])
-; (require '[pterodactyl.phalange.test :as pt])
-; (pt/init-screen)
-; (pt/m d/traverse-right 1)
+; (require '[pterodactyl.dactyl :as d])
+; (require '[pterodactyl.dactyl.test :as dt])
+; (dt/init-screen)
+; (dt/m d/traverse-forward 1)
 ;
 (def d (atom (-> ["APRIL is the cruellest month, breeding\n"
                   "Lilacs out of the dead land, mixing\n"
@@ -301,7 +301,7 @@
           col  (range 0 10)]
        (-> @d
            (d/traverse-down 7)
-           (d/traverse-right col)
+           (d/traverse-forward col)
            (d/traverse-up line)
            (and-test
               (println (str line col (d/text-after it 10)))))))
