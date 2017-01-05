@@ -4,19 +4,18 @@
             [lanterna.screen :as s])
   (:import pterodactyl.dactyl.StringPiece
            pterodactyl.dactyl.Piece
-           pterodactyl.dactyl.Table
            pterodactyl.dactyl.Dactyl))
 
 (deftest test-piece
-  (let [piece (d/make-string-piece "Hello")]
-    (testing "make-string-piece function"
+  (let [piece (d/string->piece "Hello")]
+    (testing "string->piece function"
       (isa? piece StringPiece)
       ;(is (satisfies? Piece piece))
       (is (= "Hello" (:string piece)))
       (is (= 0 (:from piece)))
       (is (= 5 (:to piece))))
     (testing "Assertion errors"
-      (is (thrown? AssertionError (d/make-string-piece ["Hello"]))))
+      (is (thrown? AssertionError (d/string->piece ["Hello"]))))
     (testing "piece-length (on initial create)"
       (is (= 5 (d/piece-length piece))))
     (testing "piece-string"
@@ -28,7 +27,7 @@
 
 (deftest split-piece
   (let [string "Hello World"
-        piece (d/make-string-piece string)
+        piece (d/string->piece string)
         length (count string)]
     (testing "split-piece function & piece-string"
       (is (= [d/END-OF-BUFFER] (d/split-piece d/END-OF-BUFFER 0)))
@@ -39,16 +38,6 @@
           (is (- length at) (d/piece-length piece2))
           (is (str (d/piece-string piece1) (d/piece-string piece2)))))))) 
     
-(deftest test-table
-  (let [table (d/make-table ["Hello" " " "World"])]
-    (testing "make-table function"
-      (isa? table Table)
-      (is (= "Hello World" (d/show-table table))))
-    (testing "Assertion errors"
-      (is (thrown? AssertionError (d/make-table "Single")))
-      (is (thrown? AssertionError (d/make-table ["Hello" 1])))
-      (is (thrown? AssertionError (d/show-table "Hello"))))))
-
 (defmacro test-dactyl-at [d pos#]
   "Macro instead of function, purely to give failure message with line-number
   of caller. This expects to be run within test-dactyl, as it requires the
@@ -67,17 +56,16 @@
 
 (deftest test-dactyl
   (let [strings ["Hello" " " "World"]
-        table (d/make-table strings)
         string (apply str strings)
         length (count string)
-        dactyl (d/make-dactyl table)]
-    (testing "make-dactyl function"
+        dactyl (d/strings->dactyl strings)]
+    (testing "strings->dactyl function"
       (isa? dactyl Dactyl)
       (is (= 0 (:acc-pos dactyl)))
       (is (= 0 (:curr-pos dactyl)))
       (is (= '() (:back dactyl))))
     (testing "current/dactyl pos/text functions functions"
-      (is (= (d/make-string-piece "Hello") (d/curr dactyl)))
+      (is (= (d/string->piece "Hello") (d/curr dactyl)))
       (is (= "Hello" (d/curr-text dactyl)))
       (is (= "Hello" (d/curr-text-post dactyl)))
       (is (= 5 (d/curr-pos-post dactyl)))
@@ -152,8 +140,7 @@
             (is (= (reverse exp-curr-pos-post's) (map d/curr-pos-post ds-left)))
             (is (= (reverse exp-curr-text-post's) (map d/curr-text-post ds-left))))))
     (testing "Assertion errors"
-      (is (thrown? AssertionError (d/make-dactyl "Single")))
-      (is (thrown? AssertionError (d/make-dactyl ["Hello" " " "World"]))))
+      (is (thrown? AssertionError (d/strings->dactyl "Single"))))
     (testing "split-dactyl"
       (doseq [d (take length (iterate d/nudge-right dactyl))]
         (let [d-split (d/split-dactyl d)]
@@ -197,15 +184,15 @@
     (testing "copy-range"
       (is (= "" (-> dactyl
                     (d/copy-range identity)
-                    (d/show-table))))
+                    (d/all-text))))
       (is (= "o" (-> dactyl
                      (d/traverse-right 4)
                      (d/copy-range d/nudge-right)
-                     (d/show-table))))
+                     (d/all-text))))
       (is (= "o Worl" (-> dactyl
                          (d/traverse-right 4)
                          (d/copy-range #(d/goto % 10))
-                         (d/show-table)))))
+                         (d/all-text)))))
     (testing "right-till"
       (is (= "o World" (-> dactyl
                           (d/right-till "o")
@@ -244,8 +231,7 @@
                    "Winter kept us warm, covering\n"
                    "Earth in forgetful snow, feeding\n"
                    "A little life with dried tubers.\n"]
-                 (d/make-table)
-                 (d/make-dactyl))]
+                 (d/strings->dactyl))]
         (testing "col-pos"
           (-> dactyl
               (and-test
@@ -279,8 +265,7 @@
                   "Winter kept us warm, covering\n"
                   "Earth in forgetful snow, feeding\n"
                   "A little life with dried tubers."]
-                (d/make-table)
-                (d/make-dactyl))))
+                (d/strings->dactyl))))
 
 (def screen (atom nil))
 

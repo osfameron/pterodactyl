@@ -7,6 +7,8 @@
   (piece-string [p])
   (split-piece [p at]))
 
+(def piece? (partial satisfies? Piece))
+
 (defrecord StringPiece [string from to]
   Piece
   (piece-length [piece]
@@ -27,7 +29,7 @@
               after (assoc piece :from pivot)]
          [before after])))))
 
-(defn make-string-piece [string]
+(defn string->piece [string]
   {:pre [(string? string)]}
   (StringPiece. string 0 (count string)))
 
@@ -40,16 +42,6 @@
     (piece-string [_] "")
     (split-piece [p _] [p])))
 
-(defrecord Table [pieces])
-(def table? (partial instance? Table))
-(defn make-table [strings]
-  {:pre [(every? string? strings)]}
-  (Table. (concat (map make-string-piece strings) [END-OF-BUFFER])))
-
-(defn show-table [table]
-  {:pre [(table? table)]}
-  (apply str (map piece-string (:pieces table))))
-         
 ; zipper class, a finger onto the data
 ; (Clojure has zippers, but they seem to be only on hierarchical data
 ; structures?)
@@ -61,9 +53,13 @@
 (def empty-dactyl
   (Dactyl. '() '() 0 0))
 
-(defn make-dactyl [table]
-  {:pre [(table? table)]}
-  (assoc empty-dactyl :pieces (:pieces table)))
+(defn pieces->dactyl [pieces]
+  {:pre [(every? piece? pieces)]}
+  (assoc empty-dactyl :pieces (concat pieces [END-OF-BUFFER])))
+
+(defn strings->dactyl [strings]
+  {:pre [(every? string? strings)]}
+  (pieces->dactyl (map string->piece strings)))
 
 (defn curr [dactyl]
   {:pre [(dactyl? dactyl)]}
@@ -343,18 +339,17 @@
     [deleted-dactyl cut-pieces])) 
 
 (def delete-to (comp first cut))
-(def copy-range (comp ->Table second cut))
+(def copy-range (comp pieces->dactyl second cut))
 
 (defn insert [dactyl string]
   {:pre [(dactyl? dactyl)
          (string? string)]
    :post [dactyl?]}
-  (let [piece (make-string-piece string)
+  (let [piece (string->piece string)
         dactyl (split-dactyl dactyl)]
     (update dactyl :pieces (partial cons piece))))
 
 ; next steps
-  ; remove Table abstraction (is just a list of Pieces)
   ; protocol for Phalange
   ; convenience functions for whole buffer (from start / point)
   ; marks
