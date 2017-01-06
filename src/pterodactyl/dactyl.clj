@@ -121,10 +121,6 @@
   {:pre [(dactyl? dactyl)]}
   (dissoc dactyl :bounce))
 
-; For now, we'll clear the bounce flag at the beginning of a traverse
-; I'm assuming this is a noop if already not set - e.g. won't create
-; new datastructure?  In any case, this will probably move to outer
-; controller framework eventually.
 (defn traverse-forward 
   ([dactyl] (traverse-forward dactyl 1))
   ([dactyl count]
@@ -164,11 +160,16 @@
 (defn goto [dactyl pos]
   {:pre [(dactyl? dactyl)
          (<= 0 pos)]}
-  (let [curr-pos (dactyl-pos dactyl)]
-    (cond
-      (= pos curr-pos) dactyl
-      (> pos curr-pos) (traverse-forward dactyl (- pos curr-pos))
-      (< pos curr-pos) (traverse-backward dactyl (- curr-pos pos)))))
+  (if (zero? pos)
+    (assoc dactyl :curr-pos 0
+                  :acc-pos 0
+                  :pieces (apply (partial conj (:pieces dactyl)) (:back dactyl))
+                  :back '())
+    (let [curr-pos (dactyl-pos dactyl)]
+      (cond
+        (= pos curr-pos) dactyl
+        (> pos curr-pos) (traverse-forward dactyl (- pos curr-pos))
+        (< pos curr-pos) (traverse-backward dactyl (- curr-pos pos))))))
 
 ; mostly cargo culted from (some->)
 (defmacro =>
@@ -209,9 +210,6 @@
     (if (zero? curr-pos)
       dactyl
       (let [[pre post] (split-piece (curr dactyl) curr-pos)]
-        ; tempted to use (update) instead, e.g. with
-        ;   (comp (partial cons post) rest)
-        ; but not sure that's any more readable...
         (assoc dactyl
                :back (conj back pre)
                :pieces (conj (rest pieces) post)
@@ -244,6 +242,7 @@
   (let [piece (string->piece string)
         dactyl (split-dactyl dactyl)]
     (update dactyl :pieces (partial cons piece))))
+
 (defn text-after
   ([dactyl] 
    {:pre [(dactyl? dactyl)]}
@@ -257,8 +256,7 @@
 
 (defn all-text [dactyl]
   {:pre [(dactyl? dactyl)]}
-  ;; stupid, placeholder, partial implementation
-  (-> dactyl (traverse-backward 1000) (text-after 1000)))
+  (-> dactyl (goto 0) (text-after)))
 
 (defn till [dactyl dir string]
   {:pre [(dactyl? dactyl)
