@@ -23,13 +23,12 @@
   (split-piece [piece at]
     {:pre [(<= 0 at)
            (< at (piece-length piece))]}
-    (let [length (piece-length piece)]
-      (if (zero? at)
-        [piece]
-        (let [pivot (+ at (:from piece))
-              before (assoc piece :to pivot)
-              after (assoc piece :from pivot)]
-         [before after])))))
+    (if (zero? at)
+      [piece]
+      (let [pos (+ at (:from piece))
+            before (assoc piece :to pos)
+            after (assoc piece :from pos)]
+       [before after]))))
 
 (defn string->piece [string]
   {:pre [(string? string)]}
