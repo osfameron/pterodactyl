@@ -184,14 +184,17 @@
     (testing "copy-range"
       (is (= "" (-> dactyl
                     (d/copy-range identity)
+                    (d/pieces->dactyl)
                     (d/all-text))))
       (is (= "o" (-> dactyl
                      (d/traverse-forward 4)
                      (d/copy-range d/traverse-forward)
+                     (d/pieces->dactyl)
                      (d/all-text))))
       (is (= "o Worl" (-> dactyl
                          (d/traverse-forward 4)
                          (d/copy-range #(d/goto % 10))
+                         (d/pieces->dactyl)
                          (d/all-text)))))
     (testing "right-till"
       (is (= "o World" (-> dactyl

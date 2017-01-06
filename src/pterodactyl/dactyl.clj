@@ -2,6 +2,8 @@
   (:require [taoensso.truss :as truss :refer (have have! have?)])
   (:gen-class))
 
+(declare debug)
+
 (defprotocol Piece
   (piece-length [p])
   (piece-string [p])
@@ -159,47 +161,6 @@
              (assoc dactyl :bounce :left, :curr-pos 0)
              (recur next (- count steps-to-prev-piece))))))))
 
-(defn text-after
-  ([dactyl] 
-   {:pre [(dactyl? dactyl)]}
-   (apply str (concat [(curr-text-post dactyl)]
-                      (map piece-string (rest (:pieces dactyl)))))) 
-
-  ([dactyl length] 
-   {:pre [(dactyl? dactyl)
-          (<= 0 length)]}
-   (let [stream (cons (curr-text-post dactyl)
-                      (map piece-string (rest (:pieces dactyl))))
-         aux (fn [[acc remaining :as tuple] string]
-               (let [string-len (count string)] 
-                 (case (compare string-len remaining)
-                   -1 [(conj acc string) (- remaining string-len)]
-                    0 (reduced [(conj acc string) 0])
-                    1 (reduced [(conj acc (subs string 0 remaining)) 0]))))
-         result (reduce aux [[] length] stream)] 
-     (apply str (first result)))))
-
-(defn all-text [dactyl]
-  {:pre [(dactyl? dactyl)]}
-  ;; stupid, placeholder, partial implementation
-  (-> dactyl (traverse-backward 1000) (text-after 1000)))
-
-(defn till [dactyl dir string]
-  {:pre [(dactyl? dactyl)
-         (string? string)]}
-  (let [nudge (have (dir {:left traverse-backward, :right traverse-forward}))
-        length (count string)]
-    (loop [d dactyl]
-      (let [d' (nudge d)]
-        (if (or 
-              (= string (text-after d' length))
-              (:bounce d'))
-            d'
-            (recur d'))))))
-
-(def right-till #(till %1 :right %2))
-(def left-till  #(till %1 :left %2))
-
 (defn goto [dactyl pos]
   {:pre [(dactyl? dactyl)
          (<= 0 pos)]}
@@ -226,7 +187,7 @@
           (last steps)))))
 
 (defn traverse [dactyl traversals]
-  "non-greedy :bounce short-circuiting traversal"
+  "non-greedy :bounce short-circuiting traversal reduction"
   (reduce
     (fn [d f]
       (let [d' (f d)]
@@ -236,16 +197,87 @@
     (unbounce dactyl)
     traversals))
 
+(defn dactyl-delta [d1 d2]
+  (apply - (map dactyl-pos [d2 d1])))
+
+(defn split-dactyl [dactyl]
+  {:pre [(dactyl? dactyl)]
+   :post [dactyl?]}
+  "Split the dactyl at current insertion point.  Anything to left of curr-pos
+  will become a new piece.  Noop if we are at far-left of piece."
+  (let [{:keys [curr-pos back pieces acc-pos]} dactyl]
+    (if (zero? curr-pos)
+      dactyl
+      (let [[pre post] (split-piece (curr dactyl) curr-pos)]
+        ; tempted to use (update) instead, e.g. with
+        ;   (comp (partial cons post) rest)
+        ; but not sure that's any more readable...
+        (assoc dactyl
+               :back (conj back pre)
+               :pieces (conj (rest pieces) post)
+               :curr-pos 0
+               :acc-pos (dactyl-pos dactyl))))))
+
+(defn cut [dactyl movement]
+  {:pre [(dactyl? dactyl)
+         (fn? movement)]}
+  ;; split both origin and end point, and make sure that both dactyls
+  ;; have both splits in their piece lists by moving *back* to origin
+  ;; this allows us to take-while identical? instead of having to do
+  ;; any more complicated calculation.
+  (let [dactyl (split-dactyl dactyl)
+        other (split-dactyl (have dactyl? (movement dactyl)))
+        dactyl (goto other (dactyl-pos dactyl))
+        [d1 d2] (sort-by dactyl-pos [dactyl other])
+        target (first (:pieces d2))
+        cut-pieces (vec (take-while #(not (identical? % target)) (:pieces d1))) 
+        deleted-dactyl (assoc d1 :pieces (:pieces d2))]
+    [deleted-dactyl cut-pieces])) 
+
+(def delete-to (comp first cut))
+(def copy-range (comp second cut))
+
+(defn insert [dactyl string]
+  {:pre [(dactyl? dactyl)
+         (string? string)]
+   :post [dactyl?]}
+  (let [piece (string->piece string)
+        dactyl (split-dactyl dactyl)]
+    (update dactyl :pieces (partial cons piece))))
+(defn text-after
+  ([dactyl] 
+   {:pre [(dactyl? dactyl)]}
+   (apply str (map piece-string (:pieces (split-dactyl dactyl))))) 
+
+  ([dactyl length] 
+   {:pre [(dactyl? dactyl)
+          (<= 0 length)]}
+   (let [pieces (copy-range dactyl #(traverse-forward % length))]
+      (apply str (map piece-string pieces)))))
+
+(defn all-text [dactyl]
+  {:pre [(dactyl? dactyl)]}
+  ;; stupid, placeholder, partial implementation
+  (-> dactyl (traverse-backward 1000) (text-after 1000)))
+
+(defn till [dactyl dir string]
+  {:pre [(dactyl? dactyl)
+         (string? string)]}
+  (let [nudge (have (dir {:left traverse-backward, :right traverse-forward}))
+        length (count string)]
+    (loop [d dactyl]
+      (let [d' (nudge d)]
+        (if (or 
+              (= string (text-after d' length))
+              (:bounce d'))
+            d'
+            (recur d'))))))
+
+(def right-till #(till %1 :right %2))
+(def left-till  #(till %1 :left %2))
+
 (defn go-end-of-prev-line [dactyl]
   (traverse dactyl [#(left-till % "\n")]))
-
-(def debugging (atom true))
-(defn debug [dactyl & [tag]]
-  "debug function which returns dactyl, allowing it to be easily added into => or traverse pipeline"
-  (when @debugging
-    (println (str "DEBUG " tag " => " {:curr-pos (:curr-pos dactyl) :dpos (dactyl-pos dactyl)} " " (text-after dactyl 5) "...")))
-  dactyl)
-  
 
 (defn go-start-of-line [dactyl]
   (=> dactyl (left-till "\n")
@@ -257,9 +289,6 @@
 
 (defn go-start-of-next-line [dactyl]
   (traverse dactyl [go-end-of-line traverse-forward]))
-
-(defn dactyl-delta [d1 d2]
-  (apply - (map dactyl-pos [d2 d1])))
 
 (defn col-pos [dactyl]
   (let [start (go-start-of-line dactyl)]
@@ -306,50 +335,12 @@
          (traverse (repeat steps go-end-of-prev-line))
          (go-col col)))))
 
-(defn split-dactyl [dactyl]
-  {:pre [(dactyl? dactyl)]
-   :post [dactyl?]}
-  "Split the dactyl at current insertion point.  Anything to left of curr-pos
-  will become a new piece.  Noop if we are at far-left of piece."
-  (let [{:keys [curr-pos back pieces acc-pos]} dactyl]
-    (if (zero? curr-pos)
-      dactyl
-      (let [[pre post] (split-piece (curr dactyl) curr-pos)]
-        ; tempted to use (update) instead, e.g. with
-        ;   (comp (partial cons post) rest)
-        ; but not sure that's any more readable...
-        (assoc dactyl
-               :back (conj back pre)
-               :pieces (conj (rest pieces) post)
-               :curr-pos 0
-               :acc-pos (dactyl-pos dactyl))))))
-
-(defn cut [dactyl movement]
-  {:pre [(dactyl? dactyl)
-         (fn? movement)]}
-  ;; split both origin and end point, and make sure that both dactyls
-  ;; have both splits in their piece lists by moving *back* to origin
-  ;; this allows us to take-while identical? instead of having to do
-  ;; any more complicated calculation.
-  (let [dactyl (split-dactyl dactyl)
-        other (split-dactyl (have dactyl? (movement dactyl)))
-        dactyl (goto other (dactyl-pos dactyl))
-        [d1 d2] (sort-by dactyl-pos [dactyl other])
-        target (first (:pieces d2))
-        cut-pieces (vec (take-while #(not (identical? % target)) (:pieces d1))) 
-        deleted-dactyl (assoc d1 :pieces (:pieces d2))]
-    [deleted-dactyl cut-pieces])) 
-
-(def delete-to (comp first cut))
-(def copy-range (comp pieces->dactyl second cut))
-
-(defn insert [dactyl string]
-  {:pre [(dactyl? dactyl)
-         (string? string)]
-   :post [dactyl?]}
-  (let [piece (string->piece string)
-        dactyl (split-dactyl dactyl)]
-    (update dactyl :pieces (partial cons piece))))
+(def debugging (atom true))
+(defn debug [dactyl & [tag]]
+  "debug function which returns dactyl, allowing it to be easily added into => or traverse pipeline"
+  (when @debugging
+    (println (str "DEBUG " tag " => " {:curr-pos (:curr-pos dactyl) :dpos (dactyl-pos dactyl)} " " (text-after dactyl 5) "...")))
+  dactyl)
 
 ; next steps
   ; protocol for Dactyl
