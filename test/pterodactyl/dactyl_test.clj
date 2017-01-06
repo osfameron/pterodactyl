@@ -44,7 +44,7 @@
   'string' binding"
     `(do
        (is (= ~pos# (d/dactyl-pos ~d)))
-       (is (= (subs ~'string ~pos#) (d/text-after ~d 100)))))
+       (is (= (subs ~'string ~pos#) (d/text-after ~d)))))
 
 ; vaguely related to as-> except it doesn't do threading,
 ; has a hard-coded anaphoric 'it' and simply returns the value
@@ -160,27 +160,27 @@
       (is (= "Helld" (-> dactyl 
                          (d/traverse-forward 4)
                          (d/delete-to #(d/goto % 10))
-                         (d/goto 0) (d/text-after 100))))
+                         (d/goto 0) (d/text-after))))
       (is (= "Hell World" (-> dactyl
                              (d/traverse-forward 5)
                              (d/delete-to d/traverse-backward)
-                             (d/goto 0) (d/text-after 100))))
+                             (d/goto 0) (d/text-after))))
       (is (= "World" (-> dactyl
                          (d/traverse-forward 6)
                          (d/delete-to #(d/goto % 0))
-                         (d/text-after 100))))
+                         (d/text-after))))
       (is (= "Hello" (-> dactyl
                          (d/traverse-forward 5)
                          (d/delete-to #(d/traverse-forward % 100))
-                         (d/goto 0) (d/text-after 100)))))
+                         (d/goto 0) (d/text-after)))))
     (testing "insert"
       (is (= "So, Hello World" (-> dactyl
                                    (d/insert "So, ")
-                                   (d/goto 0) (d/text-after 100))))
+                                   (d/goto 0) (d/text-after))))
       (is (= "Hello there World" (-> dactyl
                                      (d/traverse-forward 6)
                                      (d/insert "there ")
-                                     (d/goto 0) (d/text-after 100)))))
+                                     (d/goto 0) (d/text-after)))))
     (testing "copy-range"
       (is (= "" (-> dactyl
                     (d/copy-range identity)
@@ -196,32 +196,32 @@
     (testing "right-till"
       (is (= "o World" (-> dactyl
                           (d/right-till "o")
-                          (d/text-after 100))))
+                          (d/text-after))))
       (is (= "orld" (-> dactyl
                           (d/right-till "o")
                           (d/right-till "o")
-                          (d/text-after 100))))
+                          (d/text-after))))
       (is (= "" (-> dactyl
                           (d/right-till "o")
                           (d/right-till "o")
                           (d/right-till "o")
-                          (d/text-after 100)))))
+                          (d/text-after)))))
     (testing "left-till"
       (is (= "orld" (-> dactyl
                           (d/traverse-forward 100)
                           (d/left-till "o")
-                          (d/text-after 100))))
+                          (d/text-after))))
       (is (= "o World" (-> dactyl
                           (d/traverse-forward 100)
                           (d/left-till "o")
                           (d/left-till "o")
-                          (d/text-after 100))))
+                          (d/text-after))))
       (is (= "Hello World" (-> dactyl
                              (d/traverse-forward 100)
                              (d/left-till "o")
                              (d/left-till "o")
                              (d/left-till "o")
-                             (d/text-after 100)))))
+                             (d/text-after)))))
     (testing "rows and columns"
       (let [dactyl 
               (-> ["APRIL is the cruellest month, breeding\n"

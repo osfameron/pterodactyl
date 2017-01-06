@@ -59,7 +59,9 @@
 
 (defn strings->dactyl [strings]
   {:pre [(every? string? strings)]}
-  (pieces->dactyl (map string->piece strings)))
+  (->> strings
+       (map string->piece)
+       (pieces->dactyl)))
 
 (defn curr [dactyl]
   {:pre [(dactyl? dactyl)]}
@@ -122,9 +124,7 @@
 ; new datastructure?  In any case, this will probably move to outer
 ; controller framework eventually.
 (defn traverse-forward 
-  ([dactyl]
-   (traverse-forward dactyl 1))
-
+  ([dactyl] (traverse-forward dactyl 1))
   ([dactyl count]
    {:pre [(dactyl? dactyl)
           (<= 0 count)]}
@@ -143,9 +143,7 @@
              (recur next (- count avail))))))))
 
 (defn traverse-backward 
-  ([dactyl]
-   (traverse-backward dactyl 1))
-  
+  ([dactyl] (traverse-backward dactyl 1))
   ([dactyl count]
    {:pre [(dactyl? dactyl)
           (<= 0 count)]}
@@ -162,22 +160,24 @@
              (recur next (- count steps-to-prev-piece))))))))
 
 (defn text-after
-  ([dactyl len] 
-   {:pre [(dactyl? dactyl)
-          (<= 0 len)]}
-   (apply str (text-after dactyl len [])))
+  ([dactyl] 
+   {:pre [(dactyl? dactyl)]}
+   (apply str (concat [(curr-text-post dactyl)]
+                      (map piece-string (rest (:pieces dactyl)))))) 
 
-  ([dactyl len acc]
-   (cond
-     (nil? dactyl) acc
-     (zero? len) acc
-     :else
-      (let [text (curr-text-post dactyl)
-            chunk (subs text 0 (min len (count text)))]
-        (recur
-          (traverse-next dactyl)
-          (- len (count chunk))
-          (conj acc chunk)))))) 
+  ([dactyl length] 
+   {:pre [(dactyl? dactyl)
+          (<= 0 length)]}
+   (let [stream (cons (curr-text-post dactyl)
+                      (map piece-string (rest (:pieces dactyl))))
+         aux (fn [[acc remaining :as tuple] string]
+               (let [string-len (count string)] 
+                 (case (compare string-len remaining)
+                   -1 [(conj acc string) (- remaining string-len)]
+                    0 (reduced [(conj acc string) 0])
+                    1 (reduced [(conj acc (subs string 0 remaining)) 0]))))
+         result (reduce aux [[] length] stream)] 
+     (apply str (first result)))))
 
 (defn all-text [dactyl]
   {:pre [(dactyl? dactyl)]}
