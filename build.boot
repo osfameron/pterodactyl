@@ -6,7 +6,8 @@
           :dependencies   '[[org.clojure/clojure "1.9.0-alpha14"]
                             [adzerk/boot-test "RELEASE" :scope "test"]
                             [com.taoensso/truss "1.3.6"]
-                            [clojure-lanterna "0.9.7"]])
+                            [clojure-lanterna "0.9.7"]
+                            [automat "0.2.0"]])
 
 (task-options!
  pom {:project     project
