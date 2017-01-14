@@ -1,0 +1,179 @@
+Functional Data Structures for Text Editors
+
+# age 10, tried to write a "Word Processor" on one of first computers
+(spectrum 48K? BBC Micro?)
+  DIM s$
+  CLS
+  PRINT
+  INKEY$
+  s$[1 to 5]
+  GOTO
+
+# String
+"APRIL is the cruellest month, breeding\nLilacs out of the dead land, mixing\nMemory and desire, stirring\nDull roots with spring rain.\nWinter kept us warm, covering\nEarth in forgetful snow, feeding\nA little life with dried tubers."
+
+# but actually...
+
+pyvim [comments glance "this seems to work really well up to 100,000 lines, thanks to Python's efficient string manipulations"]
+
+# functional?
+
+  "APRIL is the cruelest month"
+  "MAY is the cruelest month"
+
+(but may depend on underlying implementation - e.g. ropes)
+
+# metadata?  array of metadata?  array of indices into string?  how to keep up to date?
+
+# Array of chars (with metadata)
+Plan 9 SAM [glance]
+
+[\A, \P, \R, \I, \L, \space, \i, \s, \space, \t, \h, \e, ... ]
+
+[[\A {:colour :red}] [\P {:colour :red}] [\R {:colour :red}] [\I {:colour :red}] [\L {:colour :red}]  ... ]
+
+# Array of lines
+
+   ["APRIL is the cruellest month, breeding\n"
+    "Lilacs out of the dead land, mixing\n"
+    "Memory and desire, stirring\n"
+    "Dull roots with spring rain.\n"
+    "Winter kept us warm, covering\n"
+    "Earth in forgetful snow, feeding\n"
+    "A little life with dried tubers."]
+
+Vi/Ex 1976 [glance]
+Vim [neovim]
+Gnu Moe 2005 [glance]
+Atom [glance2]
+Microsoft Visual Studio Code web [possibly, glance2]
+Cloud9 Ace [glance2]
+Eclipse Orion [comments to glance2]
+
+# Gap Buffer / SplitVector
+
+Emacs 1987 [glance]
+Scintilla 1999 [glance - also a separate gap buffer for line numbers]
+
+                        +12
+ 0         1   0        0         1         2         3         4         5
+ 0123456789012 01234567 012345678901234567890123456789012345678901234567890123
+"APRIL is the [--------]cruellest month, breeding\nLilacs out of the dead land..."
+
+                        +17
+ 0         1   0        0         1         2         3         4         5
+ 0123456789012 01234567 012345678901234567890123456789012345678901234567890123
+"APRIL is the [most ---]cruellest month, breeding\nLilacs out of the dead land..."
+
+                                  +22
+ 0         1         2   0        0         1         2         3         4 
+ 01234567890123456789012 01234567 0123456789012345678901234567890123456789012345678
+"APRIL is the most cruel[--------]lest month, breeding\nLilacs out of the dead land..."
+
+                                      +22
+ 0         1         2   0         1  0         1         2         3         4 
+ 01234567890123456789012 01234567890  012345678901234567890123456789012345678901234
+"APRIL is the most cruel[------------] month, breeding\nLilacs out of the dead land..."
+
+# Binary tree
+## Rope
+GtkTextBuffer [glance]
+yi 2005 [yi-rope]
+## Enfilade
+[xanadu]
+## Other
+Adobe Brackets/CodeMirror [glance2, binary tree, nodes are lines]
+Trees of paragraphs/elements: JEditorPane [editorkit]
+
+                   O
+                 /  \
+                /    \
+               /      \
+              /        \
+             O           O
+            /  \        / \    
+           /    \      /   \  
+          /      \    /     \
+         /        \  /       \
+        O           O         O
+       / \         / \         \
+      /   \       /   \         \
+     /     \     /     \         \
+    /       \   /       \         \
+  APRIL    is  the    cruellest   month
+
+                   O 34
+                 /  \
+                /    \
+               /      \
+           18 /        \  16
+             O           O
+            /  \        / \    
+           /    \      /   \  
+          /      \    /     \
+       7 /        \  /       \
+        O           O 11      O 5
+       / \         / \         \
+      /   \       /   \         \
+     /     \     /     \         \
+   5/      2\  3/      8\        5\
+  APRIL    is  the    cruellest   month
+(Rope and Enfilade are variant of this)
+
+# Linked List
+Mentioned in [crowley]
+
+
+  A->P->R->I->L-> ->i->s-> ->t->h->e-> ->c->r->u->e->l->e->s->t->...
+  A<>P<>R<>I<>L<> <>i<>s<> <>t<>h<>e<> <>c<>r<>u<>e<>l<>e<>s<>t<>...
+
+# Piece Table
+Microsoft Word 1.1a [glance2]
+Bravo "The highly influential" [piece, crowley]
+Abiword [piece]
+Bravo [10], Lara [8], Point [4] and Pastiche [5]. 
+
+# Other thoughts
+- Zippers! (yi)
+- implementation vs abstraction (e.g. "you are here!" view)
+- metadata
+- marks
+- Parsers (e.g. for syntax highlighting?)
+    https://github.com/Engelberg/instaparse (but not resumably)
+    antlr (see also antlrworks says dysfun, though may not be supported for clj version)
+      see http://stackoverflow.com/questions/14864777/using-antlr-for-parsing-data-from-never-ending-stream
+      neverending vs interactive
+    https://github.com/ztellman/automat (streaming goodness) (resumable)
+    also https://github.com/cdorrat/reduce-fsm/
+    https://github.com/cgrand/seqexp
+
+Rabbit-holes
+============
+command mapping
+filesystem
+guis
+repls
+folding
+encodings (unicode)
+  - double width characters!
+
+"It is a matter of common observation that people will learn to use any command language, no matter how bad, if they are exposed to it for long enough" [whitfield]
+
+References
+==========
+
+[spectrum] http://www.worldofspectrum.org/ZXBasicManual/
+[glance] https://ecc-comp.blogspot.co.uk/2015/05/a-brief-glance-at-how-5-text-editors.html
+[glance2] https://ecc-comp.blogspot.co.uk/2016/11/a-glance-into-web-tech-based-text.html
+[neovim] https://github.com/neovim/neovim/wiki/Architectural-musing-and-ideas
+[inside] https://web.archive.org/web/20150409021025/http://curiousreef.com/class/learning-vim-from-the-inside/
+[finseth] http://www.finseth.com/craft/index.html
+[crowley] http://www.cs.unm.edu/~crowley/papers/sds/sds.html
+[yi-rope] https://github.com/yi-editor/yi-rope
+[xanadu] https://en.wikipedia.org/wiki/Enfilade_(Xanadu)
+[catch22] http://www.catch22.net/tuts/piece-chains
+[piece] https://en.wikipedia.org/wiki/Piece_table
+[editorkit] http://java-sl.com/editor_kit_tutorial_document.html]
+[whitfield] http://history.dcs.ed.ac.uk/archive/apps/Whitfield-Thesis/thesis.html
+[pterodactyl] derived from CC-BY-SA 4.0 Matthew P. Martyniuk:
+https://en.wikipedia.org/wiki/Pterodactylus#/media/File:Pterodactylus_holotype_fly_mmartyniuk.png
