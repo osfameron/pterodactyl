@@ -1,14 +1,15 @@
 # pterodactyl
 
-FIXME: description
+Programmer's Text Editor for Winged Dinosaurs
 
 ## Installation
 
-Download from http://example.com/FIXME.
+Download from https://github.com/osfameron/pterodactyl/
 
 ## Usage
 
-FIXME: explanation
+*This code is currently in development and is pre-Alpha*.
+(e.g. this is not a working text editor, yet.)
 
 Run the project directly:
 
@@ -36,15 +37,15 @@ FIXME: listing of options this app accepts.
 
 ### Bugs
 
-...
+Please submit bugs to https://github.com/osfameron/pterodactyl/issues
 
-### Any Other Sections
-### That You Think
-### Might be Useful
+### Contributing and Code of Conduct
+
+This project is governed by the [Contributor Covenant](CODE_of_CONDUCT.md)
 
 ## License
 
-Copyright © 2016 FIXME
+Copyright © 2017 osfameron
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
