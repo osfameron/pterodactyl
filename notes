@@ -584,3 +584,9 @@ Modes are per-buffer, and switch as you change buffer
   - NB: because macro operates without screen display, reinforces the separation of concerns
 
 9.10 command  summary (todo note)
+
+Community resources:
+####################
+
+https://www.gitano.org.uk/covenant/ via Kinnison
+https://github.com/ContributorCovenant/contributor_covenant
