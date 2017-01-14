@@ -1,6 +1,4 @@
 (ns pterodactyl.scratch
-  (:require [automat.core :as a]
-            [automat.viz :refer [view]])
   (:gen-class))
 
 (defn pair-reductions [acc-fn init xs]
@@ -44,61 +42,31 @@
 (defn col0  [m] (assoc m :col 0))
 (def crlf (comp row+ col0))
 (defn col+ [m] (update m :col inc))
-
-(defn char-range [start end]
-  (map char (range (int start) (inc (int end)))))
-
-;;(def word (apply a/or (map list (concat (char-range \A \Z) (char-range \a \z)))))
-
-(def word-count-with-signal
-  (a/compile 
-    (a/*
-      (a/or 
-        [(a/+ false)]
-        [[(a/+ true) false] (a/$ :word+)]))
-    {:signal (fn [c] (boolean (re-matches #"\w" (str c))))
-     :reducers {:word+ word+}}))
-
-(:value (reduce #(a/advance word-count-with-signal %1 %2) 0 "baa aa aaaaaa.")) ;=> 3
-
-(defn word+ [v _] (inc v))
-(def word [\a])
-(def !word [(a/not \a)])
-(def !word [\space])
-(def word-count-with-not
-  (a/compile 
-    (a/*
-      (a/or 
-        [word !word (a/$ :word+)]
-        [a/any]))
-    {:reducers {:word+ word+}}))
-
-(:value (reduce #(a/advance word-count-with-not    %1 %2) 0 "aaa aa aaaaaa ")) ;=> 6
-
-(view word-count-with-not)
-
-(defn acc-word-count [m c] (update m :word-count #(a/advance word-count-with-signal % c))
-
 (defn set-eol [m] (assoc m :eol? true))
 (defn unset-eol [m] (dissoc m :eol?))
 
-(defn acc-basic [m c]
-  (let [maybe-crlf (if (:eol? m) crlf identity)
+(defn acc-piece [m c]
+  (let [crlf-or-advance (if (:eol? m) crlf col+)
         handle-eol (if (= \newline c) set-eol unset-eol)]
     (-> m
         pos+
-        maybe-crlf
+        crlf-or-advance
         handle-eol)))
 
-(defn acc-fn [m c]
-  (-> m
-      (acc-basic c)
-      (acc-word-count c)))
+(def acc-init {:pos 0, :row 0, :col 0})
 
-(def acc-init {:pos 0, :row 0, :col 0, :word-count 0})
-;;(def acc-init {:word-count 0})
+(defn string->piece [s]
+  [s 0 (count s)])
 
-(->> (make-zip-reducer acc-fn acc-init (seq "a aaa\n\n\n\n\n\naaa aa\naaaaaaaaa aa"))
+(defn string [piece]
+  (apply subs piece))
+
+(defn acc-table [m p]
+  (reduce acc-piece m (seq (string p))))
+
+(->> (make-zip-reducer acc-piece acc-init (seq "Hello"))
     :right)
-    ;(map (juxt first (comp :value :word-count last))))
+
+(->> (make-zip-reducer acc-table acc-init (map string->piece ["In " "Xanada\n" "did Kublai Khan"]))
+     :right)
  
