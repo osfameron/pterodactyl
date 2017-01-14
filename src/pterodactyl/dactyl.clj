@@ -340,13 +340,7 @@
   dactyl)
 
 ; next steps
-  ; protocol for Dactyl
-  ; convenience functions for whole buffer (from start / point)
-  ; marks
-    ;; go to mark
-    ;; (does this require storage within each piece?  or just dactyl?)
-  ; accumulators
-    ;; probably requires storage in each piece?
+  ; rework accumulators to reduce framework of nested zippers, as per
+  ; scratch.clj
     ;; go to line
-    ;; go up/down (strictly doesn't need accumulator)
-  ; text-before?
+    ;; fix go up/down
