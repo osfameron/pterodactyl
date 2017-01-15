@@ -155,7 +155,6 @@ Notes:
   - macro recording can be a function call or composite keystroke
     (or alternatively q ok, and Q to call it)
 
-
 So new mappings:
 
 NORMAL
@@ -324,8 +323,6 @@ Phalange
 NB: the fact that I'm adding
   {:pre [(#(instance? Dactyl %) dactyl)]}
 to each function does suggest I should be implementing a protocol instead?
-
-
 
 Types of function
 =================
@@ -520,7 +517,7 @@ possibly in a space constrained by a window mark
 
 7.4.4 advanced algorithm looks overcomplicated - why not just diff the visible
 portion, rather than complecting with unique identifiers?
-(Though in fact I guess most of this is handled by
+(Though in fact I guess most of this is handled by curses anyway)
 
 NB: 8 combinations of directions (e.g. if not L-R T-B western bias)
 
