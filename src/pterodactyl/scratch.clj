@@ -14,6 +14,12 @@
        :left '()}
       (assoc metadata :acc-fn acc-fn))))
 
+(defn string [piece]
+  (apply subs piece))
+
+(defn string->piece [s]
+  [s 0 (count s)])
+
 (def reversed {:left :right
                :right :left}) 
 
@@ -34,6 +40,13 @@
         z
         (assoc z dir xs
                  rev (conj (rev z) x)))))
+
+(defn end [dactyl]
+  (let [right (:right dactyl)
+        xs (drop-last 2 right)
+        x (take-last 2 right)]
+    (assoc dactyl :right x
+                  :left (reverse xs))))
 
 ; generic modify function (probably not useful in this form for us)
 (defn modify [z n] 
@@ -59,12 +72,6 @@
     (assoc m :eol? true)
     (dissoc m :eol?)))
 
-(defn string->piece [s]
-  [s 0 (count s)])
-
-(defn string [piece]
-  (apply subs piece))
-
 (def acc-init {:pos 0, :row 0, :col 0})
 
 (defn acc-piece [m c]
@@ -76,16 +83,9 @@
 (defn acc-table [m p]
   (reduce acc-piece m (seq (string p))))
 
-(defn make-phalange [strings]
+(defn strings->phalange [strings]
   (let [pieces (map string->piece strings)]
     (make-zipper acc-table acc-init pieces)))
-
-(defn end [dactyl]
-  (let [right (:right dactyl)
-        xs (drop-last 2 right)
-        x (take-last 2 right)]
-    (assoc dactyl :right x
-                  :left (reverse xs))))
 
 (defn phalange->dactyl [phalange & [dir]]
   (let [[piece init] (first (:right phalange)) 
@@ -97,7 +97,7 @@
 
 (defn make-dactyl [strings]
   (-> strings
-      make-phalange
+      strings->phalange
       phalange->dactyl))
 
 (defn go [dactyl dir]
