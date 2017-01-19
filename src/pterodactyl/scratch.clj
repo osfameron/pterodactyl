@@ -81,6 +81,8 @@
         col-or-row++
         (update-eol-state c)))
 
+;; TODO: instead, make-phalange should be passed the acc-piece acculumator and
+;; contruct the table accumulator based on it.
 (defn acc-table [m p]
   (reduce acc-piece m (seq (string p))))
 
