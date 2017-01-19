@@ -177,3 +177,42 @@ References
 [whitfield] http://history.dcs.ed.ac.uk/archive/apps/Whitfield-Thesis/thesis.html
 [pterodactyl] derived from CC-BY-SA 4.0 Matthew P. Martyniuk:
 https://en.wikipedia.org/wiki/Pterodactylus#/media/File:Pterodactylus_holotype_fly_mmartyniuk.png
+
+via TEttinger, on finger trees
+http://scienceblogs.com/goodmath/2010/04/26/finger-trees-done-right-i-hope/
+http://comonad.com/reader/2010/finger-trees/
+
+Rick Moynihan says:
+1: Retroactive Data Structures: http://erikdemaine.org/papers/Retroactive_SODA2004/
+(Not sure how relevant they are to text editing; but might support interesting multi-user editing environments - e.g. Google/Wave style editing / Operational Transformation etc...  Either way retroactivity is super cool...)
+Also anything by Erik Demaine is amazing...  In particular: 
+- Advanced Data Structures Lectures: http://courses.csail.mit.edu/6.851/spring12/lectures/
+(see also: http://courses.csail.mit.edu/6.851/spring14/ )
+- Advanced Algorithms: http://courses.csail.mit.edu/6.854/03/
+And also his work in Origami is mind blowing...  Truly prolific!
+- http://courses.csail.mit.edu/6.849/fall12/lectures
+
+Holloway asked on reddit comment:
+https://www.reddit.com/r/programming/comments/5ohr4f/data_structures_for_text_editors_lambdalounge_talk/
+"Any idea what the Pepper or PE text editor did to make it so fast? It could
+open 1GB+ files near instantly so I guess it was like a hex editor paging over
+the file."
+I replied:
+Had a quick look into it: there's a detailed and wide-ranging interview with
+Maarten Hekkelman at
+http://daringfireball.net/2002/08/pepper_author_maarten_hekkelman but it
+doesn't go into much detail on the data structures aspect of it. There are a
+few hints scattered throughout though:
+  "Pepper uses a sophisticated transaction mechanism to store edit changes"
+  and while "BBEdit still uses a Handle to store text internally using the gap
+array approach. Pepper uses a transaction mechanism."
+  this buys you "True unlimited undo, even when plug-ins or Replace All have
+been used; and this undo doesn’t use memory, only disk space. And when
+Pepper crashes you can reopen your work the next launch and you get the full
+undo history back of your previous session."
+He also contrasts his approach with "memory-based editing". So we have 2
+file-based stores (the original file + the transaction log). It sounds like he
+doesn't apply all of those changes anywhere in contiguous memory so (and this
+is reading between the lines a little) I think he must have a piece-table or
+similar structure in memory that he uses to build up just the segment of text
+that needs to be displayed at any point.

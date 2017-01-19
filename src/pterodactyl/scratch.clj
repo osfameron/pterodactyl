@@ -1,4 +1,5 @@
 (ns pterodactyl.scratch
+  (:require [net.cgrand.seqexp :as se]) 
   (:gen-class))
 
 (defn pair-reductions [acc-fn init xs]
@@ -104,7 +105,7 @@
   (if (end-of-zipper? dactyl dir)
     (let [up (:up (meta dactyl))]
       (if (end-of-zipper? up dir)
-        dactyl
+        nil
         (-> up (traverse dir) (phalange->dactyl dir))))
     (let [next (traverse dactyl dir)]
         next)))
@@ -114,13 +115,32 @@
   (fn [& start-args] (apply f (concat start-args end-args)))) 
 
 (defn stream [dactyl dir]
-  (iterate (partial> go dir) dactyl)) 
+  (take-while (complement nil?)
+              (iterate (partial> go dir) dactyl))) 
 
 (defn at-char [dactyl]
   (let [[[char]] (:right dactyl)]
     char))
 
+(defn match [char dactyl]
+  (= char (at-char dactyl))) 
+
+(defn find-char [dactyl dir char]
+  (let [ds (stream dactyl dir) 
+        matcher (partial match char)]
+     (if-let [m (->> ds
+                     (se/exec (se/cat (se/* (complement matcher)) matcher)) 
+                     :match)]
+        (last m)
+        dactyl)))
+
 (def dactyl (make-dactyl ["In " "Xanadu\n" "did Kublai Khan"]))
+(-> dactyl
+    (find-char :right \K)
+    (go :right)
+    (find-char :left \X)
+    (find-char :left \z)
+    (find-char :left \n))
 
 (comment
   (identity dactyl)
