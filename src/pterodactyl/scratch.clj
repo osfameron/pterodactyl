@@ -29,10 +29,9 @@
 ;;    at left, have :left ()
 ;;    at right, have :right (_, :end) e.g. 2 items
 (defn end-of-zipper? [z dir]
-  (let [x (dir z)
-        fs {:left (comp empty?)
-            :right (comp (partial = :end) first second)}]
-    ((dir fs) x)))
+  (let [fs {:left (comp empty?)
+            :right #(let [[_ [c _]] %] (= :end c))}]
+    ((dir fs) (dir z))))
 
 (defn traverse [z dir]
   (let [[x & xs] (dir z)
@@ -90,25 +89,34 @@
   (let [pieces (map string->piece strings)]
     (make-zipper acc-table acc-init pieces)))
 
-(defn phalange->dactyl [phalange & [dir]]
+(def traverse-into-dactyl {:left end, :right identity})
+
+(defn piece->seq [piece]
+  (if (= :end piece)
+      []
+      (seq (string piece))))
+
+(defn phalange->dactyl [phalange dir]
   (let [[piece init] (first (:right phalange)) 
-        xs (if (= :end piece) [] (seq (string piece)))
+        xs (piece->seq piece)
         dactyl (make-zipper acc-piece init xs {:up phalange})] 
-    (if (= :left dir)
-      (end dactyl)
-      dactyl)))
+    ((traverse-into-dactyl dir) dactyl)))
+
+(defn debug [ting string] (println string) ting)
 
 (defn make-dactyl [strings]
   (-> strings
       strings->phalange
-      phalange->dactyl))
+      (phalange->dactyl :left)))
 
 (defn go [dactyl dir]
   (if (end-of-zipper? dactyl dir)
     (let [up (:up (meta dactyl))]
       (if (end-of-zipper? up dir)
         nil
-        (-> up (traverse dir) (phalange->dactyl dir))))
+        (-> up
+            (traverse dir)
+            (phalange->dactyl dir))))
     (let [next (traverse dactyl dir)]
         next)))
 
@@ -124,17 +132,21 @@
   (let [[[char]] (:right dactyl)]
     char))
 
-(defn match [char dactyl]
+(defn match-char [char dactyl]
   (= char (at-char dactyl))) 
 
-(defn find-char [dactyl dir char]
-  (let [ds (stream dactyl dir) 
-        matcher (partial match char)]
+(defn traverse-find [dactyl dir matcher]
+  (let [ds (stream dactyl dir)] 
      (if-let [m (->> ds
-                     (se/exec (se/cat (se/* (complement matcher)) matcher)) 
-                     :match)]
-        (last m)
+                     (se/exec (se/cat (se/* (complement matcher)))) 
+                     :rest
+                     first)]
+        m
         dactyl)))
+
+(defn find-char [dactyl dir c]
+  (let [matcher (partial match-char c)]
+    (traverse-find dactyl dir matcher)))
 
 (def dactyl (make-dactyl ["In " "Xanadu\n" "did Kublai Khan"]))
 (-> dactyl
