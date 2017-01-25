@@ -4,7 +4,7 @@
 
 (defn pair-reductions [acc-fn init xs]
   (map list
-       (concat xs [:end])
+       xs
        (reductions acc-fn init xs)))
 
 ; zipper is of [[thing acc] [thing acc] ...]
@@ -12,7 +12,7 @@
   (let [rights (pair-reductions acc-fn init xs)]
     (with-meta
       {:right rights
-       :left '()}
+       :left nil}
       (assoc metadata :acc-fn acc-fn))))
 
 (defn string [piece]
@@ -26,11 +26,13 @@
 
 ;; left and right are not duals... ends look like:   [1 2 3 :end]
 ;; so:
-;;    at left, have :left ()
-;;    at right, have :right (_, :end) e.g. 2 items
+;;    at left, have :left nil
+;;    at right, have :right ($end-item) e.g. 1 item, which will be either
+;;     :end (for phalange zipper)
+;;     last-char (for dactyl zipper)
 (defn end-of-zipper? [z dir]
   (let [fs {:left (comp empty?)
-            :right #(let [[_ [c _]] %] (= :end c))}]
+            :right #(= 1 (count %))}]
     ((dir fs) (dir z))))
 
 (defn traverse [z dir]
@@ -43,9 +45,9 @@
 
 (defn end [dactyl]
   (let [right (:right dactyl)
-        xs (drop-last 2 right)
-        x (take-last 2 right)]
-    (assoc dactyl :right x
+        xs (butlast right)
+        x (last right)]
+    (assoc dactyl :right [x]
                   :left (reverse xs))))
 
 ; generic modify function (probably not useful in this form for us)
@@ -86,7 +88,8 @@
   (reduce acc-piece m (seq (string p))))
 
 (defn strings->phalange [strings]
-  (let [pieces (map string->piece strings)]
+  (let [pieces (mapv string->piece strings)
+        pieces (conj pieces :end)]
     (make-zipper acc-table acc-init pieces)))
 
 (def traverse-into-dactyl {:left end, :right identity})
@@ -102,12 +105,12 @@
         dactyl (make-zipper acc-piece init xs {:up phalange})] 
     ((traverse-into-dactyl dir) dactyl)))
 
-(defn debug [ting string] (println string) ting)
+(defn debug [ting string] (println (str ting " - " string) ting))
 
 (defn make-dactyl [strings]
   (-> strings
       strings->phalange
-      (phalange->dactyl :left)))
+      (phalange->dactyl :right)))
 
 (defn go [dactyl dir]
   (if (end-of-zipper? dactyl dir)
@@ -138,7 +141,7 @@
 (defn traverse-find [dactyl dir matcher]
   (let [ds (stream dactyl dir)] 
      (if-let [m (->> ds
-                     (se/exec (se/cat (se/* (complement matcher)))) 
+                     (se/exec (se/* (complement matcher))) 
                      :rest
                      first)]
         m
@@ -149,17 +152,17 @@
     (traverse-find dactyl dir matcher)))
 
 (def dactyl (make-dactyl ["In " "Xanadu\n" "did Kublai Khan"]))
-(-> dactyl
-    (find-char :right \K)
+
+(comment
+  (identity dactyl)
+  (-> dactyl
+    (find-char :right \space)
     (go :right)
     (find-char :left \X)
     (find-char :left \z)
     (find-char :left \n))
-
-(comment
-  (identity dactyl)
   (def five (nth (stream dactyl :right) 8))
   (map at-char (take 30 (stream five :right)))
-  (map at-char (take 12 (stream five :left))))
-
+  (map at-char (take 12 (stream five :left)))
+  (pair-reductions + 0 [1 2 3 4 5]))
 
