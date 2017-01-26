@@ -61,3 +61,45 @@
             :left
               '((\H {:pos 0}))}
            pos1))))
+
+;; helpers to do is testing within a -> pipeline
+
+(defn is= [x y]
+  (is (= x y))
+  x)
+
+(defn is? [x pred? y]
+  (is (pred? x y))
+  x)
+
+(deftest test-acc-piece
+  (-> acc-init
+      (acc-piece \a)
+      (is= {:pos 1 :row 0 :col 1})
+
+      (acc-piece \b)
+      (is= {:pos 2 :row 0 :col 2})
+
+      (acc-piece \newline)
+      (is= {:pos 3 :row 0 :col 3 :eol? true})
+
+      (acc-piece \a)
+      (is= {:pos 4 :row 1 :col 0})
+
+      (acc-piece \b)
+      (is= {:pos 5 :row 1 :col 1})
+
+      (acc-piece \newline)
+      (is= {:pos 6 :row 1 :col 2 :eol? true})
+
+      (acc-piece \newline)
+      (is= {:pos 7 :row 2 :col 0 :eol? true})
+
+      (acc-piece \newline)
+      (is= {:pos 8 :row 3 :col 0 :eol? true})
+
+      (acc-piece \a)
+      (is= {:pos 9 :row 4 :col 0})
+
+      (acc-piece \b)
+      (is= {:pos 10 :row 4 :col 1})))
