@@ -65,22 +65,17 @@
 (defn col++ [m] (update m :col inc))
 (defn col0  [m] (assoc m :col 0))
 (def crlf (comp row++ col0))
-(defn col-or-row++ [m]
-  (if (:eol? m)
+(defn col-or-row++ [m c]
+  (if (= \newline c)
     (crlf m)
     (col++ m)))
-(defn update-eol-state [m c]
-  (if (= \newline c)
-    (assoc m :eol? true)
-    (dissoc m :eol?)))
 
 (def acc-init {:pos 0, :row 0, :col 0})
 
 (defn acc-piece [m c]
     (-> m
         pos++
-        col-or-row++
-        (update-eol-state c)))
+        (col-or-row++ c)))
 
 ;; TODO: instead, make-phalange should be passed the acc-piece acculumator and
 ;; contruct the table accumulator based on it.

@@ -81,25 +81,25 @@
       (is= {:pos 2 :row 0 :col 2})
 
       (acc-piece \newline)
-      (is= {:pos 3 :row 0 :col 3 :eol? true})
+      (is= {:pos 3 :row 1 :col 0})
 
       (acc-piece \a)
-      (is= {:pos 4 :row 1 :col 0})
+      (is= {:pos 4 :row 1 :col 1})
 
       (acc-piece \b)
-      (is= {:pos 5 :row 1 :col 1})
+      (is= {:pos 5 :row 1 :col 2})
 
       (acc-piece \newline)
-      (is= {:pos 6 :row 1 :col 2 :eol? true})
+      (is= {:pos 6 :row 2 :col 0})
 
       (acc-piece \newline)
-      (is= {:pos 7 :row 2 :col 0 :eol? true})
+      (is= {:pos 7 :row 3 :col 0})
 
       (acc-piece \newline)
-      (is= {:pos 8 :row 3 :col 0 :eol? true})
+      (is= {:pos 8 :row 4 :col 0})
 
       (acc-piece \a)
-      (is= {:pos 9 :row 4 :col 0})
+      (is= {:pos 9 :row 4 :col 1})
 
       (acc-piece \b)
-      (is= {:pos 10 :row 4 :col 1})))
+      (is= {:pos 10 :row 4 :col 2})))
