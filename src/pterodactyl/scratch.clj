@@ -129,9 +129,8 @@
 (defn at-col [{[[_ {col :col}]] :right}]
   col)
 
-(defn at-char [dactyl]
-  (let [[[char]] (:right dactyl)]
-    char))
+(defn at-char [{[[char]] :right}]
+  char)
 
 (defn match-char [char dactyl]
   (= char (at-char dactyl))) 
