@@ -8,12 +8,12 @@
        (reductions acc-fn init xs)))
 
 ; zipper is of [[thing acc] [thing acc] ...]
-(defn make-zipper [acc-fn init xs & [metadata]]
+(defn make-zipper [acc-fn init xs & [base]]
   (let [rights (pair-reductions acc-fn init xs)]
-    (with-meta
-      {:right rights
-       :left nil}
-      (assoc metadata :acc-fn acc-fn))))
+    (with-meta 
+      (assoc base :right rights
+                  :left nil)
+      {:acc-fn acc-fn})))
 
 (defn string [piece]
   (apply subs piece))
@@ -77,10 +77,15 @@
         pos++
         (col-or-row++ c)))
 
+(defn piece->seq [piece]
+  (if (= :end piece)
+      []
+      (seq (string piece))))
+
 ;; TODO: instead, make-phalange should be passed the acc-piece acculumator and
 ;; contruct the table accumulator based on it.
 (defn acc-table [m p]
-  (reduce acc-piece m (seq (string p))))
+  (reduce acc-piece m (piece->seq p)))
 
 (defn strings->phalange [strings]
   (let [pieces (mapv string->piece strings)
@@ -88,11 +93,6 @@
     (make-zipper acc-table acc-init pieces)))
 
 (def traverse-into-dactyl {:left end, :right identity})
-
-(defn piece->seq [piece]
-  (if (= :end piece)
-      []
-      (seq (string piece))))
 
 (defn phalange->dactyl [phalange dir]
   (let [[piece init] (first (:right phalange)) 
@@ -109,7 +109,7 @@
 
 (defn go [dactyl dir]
   (if (end-of-zipper? dactyl dir)
-    (let [up (:up (meta dactyl))]
+    (let [up (:up dactyl)]
       (if (end-of-zipper? up dir)
         nil
         (-> up
@@ -125,6 +125,9 @@
 (defn stream [dactyl dir]
   (take-while (complement nil?)
               (iterate (partial> go dir) dactyl))) 
+
+(defn at-col [{[[_ {col :col}]] :right}]
+  col)
 
 (defn at-char [dactyl]
   (let [[[char]] (:right dactyl)]
@@ -146,18 +149,15 @@
   (let [matcher (partial match-char c)]
     (traverse-find dactyl dir matcher)))
 
-(def dactyl (make-dactyl ["In " "Xanadu\n" "did Kublai Khan"]))
+(defn start-of-line? [dactyl]
+  (zero? (at-col dactyl)))
+
+(defn go-start-of-line [dactyl]
+  (traverse-find dactyl :left start-of-line?))
+
+(defn go-end-of-line [dactyl]
+  (find-char dactyl :right \newline))
 
 (comment
-  (identity dactyl)
-  (-> dactyl
-    (find-char :right \space)
-    (go :right)
-    (find-char :left \X)
-    (find-char :left \z)
-    (find-char :left \n))
-  (def five (nth (stream dactyl :right) 8))
-  (map at-char (take 30 (stream five :right)))
-  (map at-char (take 12 (stream five :left)))
-  (pair-reductions + 0 [1 2 3 4 5]))
-
+  (def dactyl (make-dactyl ["The cat\n" "Sat on\n" "The mat\n"]))
+  (map at-char (take 26 (stream dactyl :right))))

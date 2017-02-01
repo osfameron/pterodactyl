@@ -79,7 +79,27 @@
   (is (= x y))
   x)
 
+(defn is=char [dactyl c]
+  (is (= c (at-char dactyl)))
+  dactyl)
+
 (defn is? [x pred? y]
   (is (pred? x y))
   x)
 
+(def d2 (make-dactyl ["The cat\n" "Sat on\n" "The mat\n"]))
+
+(deftest end-and-start-of-line
+  (-> d2
+    (is=char \T)
+    (go-end-of-line)
+    (is=char \newline)
+    (go-start-of-line)
+    (is=char \T)
+    (go-end-of-line)
+    (is=char \newline)
+    (go :right)
+    (go-end-of-line)
+    (is=char \newline)
+    (go-start-of-line)
+    (is=char \S)))
