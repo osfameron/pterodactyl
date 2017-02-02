@@ -47,7 +47,7 @@
   (let [right (:right dactyl)
         xs (butlast right)
         x (last right)]
-    (assoc dactyl :right [x]
+    (assoc dactyl :right (list x)
                   :left (reverse xs))))
 
 ; generic modify function (probably not useful in this form for us)
@@ -100,7 +100,17 @@
         dactyl (make-zipper acc-piece init xs {:up phalange})] 
     ((traverse-into-dactyl dir) dactyl)))
 
-(defn debug [ting string] (println (str ting " - " string) ting))
+(defn at-char [{[[char]] :right}]
+  char)
+
+(defn at-acc [{[[_ acc]] :right}]
+  (select-keys acc [:pos :col :row]))
+
+(def at-col (comp :col at-acc))
+
+(defn debug [ting string] (println string) ting)
+(defn debug-dactyl [dactyl]
+  (debug dactyl (str "@ " (at-acc dactyl) "{" (at-char dactyl) "}"))) 
 
 (defn make-dactyl [strings]
   (-> strings
@@ -126,27 +136,25 @@
   (take-while (complement nil?)
               (iterate (partial> go dir) dactyl))) 
 
-(defn at-col [{[[_ {col :col}]] :right}]
-  col)
-
-(defn at-char [{[[char]] :right}]
-  char)
-
 (defn match-char [char dactyl]
   (= char (at-char dactyl))) 
 
-(defn traverse-find [dactyl dir matcher]
-  (let [ds (stream dactyl dir)] 
-     (if-let [m (->> ds
-                     (se/exec (se/* (complement matcher))) 
-                     :rest
-                     first)]
-        m
-        dactyl)))
+(defn find-in-stream [stream matcher repeater]
+  (->> stream
+       (se/exec
+         (repeater (complement matcher)))
+       :rest
+       first))
 
-(defn find-char [dactyl dir c]
+(defn traverse-find [dactyl dir matcher & [limit]]
+   (let [ds (stream dactyl dir) 
+         repeater (if limit (partial se/repeat 0 limit) se/*)] 
+     (or (find-in-stream ds matcher repeater)
+         dactyl)))
+
+(defn find-char [dactyl dir c & [limit]]
   (let [matcher (partial match-char c)]
-    (traverse-find dactyl dir matcher)))
+    (traverse-find dactyl dir matcher limit)))
 
 (defn start-of-line? [dactyl]
   (zero? (at-col dactyl)))
@@ -156,6 +164,20 @@
 
 (defn go-end-of-line [dactyl]
   (find-char dactyl :right \newline))
+
+(defn go-up [dactyl]
+  (let [col (at-col dactyl)]
+    (-> dactyl
+        go-start-of-line
+        (go :left)
+        (traverse-find :left (comp (partial >= col) at-col)))))
+
+(defn go-down [dactyl]
+  (let [col (at-col dactyl)]
+    (-> dactyl
+        go-end-of-line
+        (go :right)
+        (find-char :right \newline col))))
 
 (comment
   (def dactyl (make-dactyl ["The cat\n" "Sat on\n" "The mat\n"]))
