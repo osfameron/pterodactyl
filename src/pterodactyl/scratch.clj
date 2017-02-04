@@ -24,7 +24,7 @@
 (def reversed {:left :right
                :right :left}) 
 
-;; left and right are not duals... ends look like:   [1 2 3 :end]
+;; left and right are not mirror-images... ends look like:   [1 2 3 :end]
 ;; so:
 ;;    at left, have :left nil
 ;;    at right, have :right ($end-item) e.g. 1 item, which will be either
@@ -157,17 +157,20 @@
   (zero? (at-col dactyl)))
 
 (defn go-start-of-line [dactyl]
-  (traverse-find dactyl :left start-of-line?))
+  (-> dactyl
+      (traverse-find :left start-of-line?)))
 
 (defn go-end-of-line [dactyl]
-  (find-char dactyl :right \newline))
+  (-> dactyl
+      (find-char :right \newline)))
 
 (defn go-up [dactyl]
-  (let [col (at-col dactyl)]
+  (let [col (at-col dactyl)
+        to-col (comp (partial >= col) at-col)]
     (-> dactyl
         go-start-of-line
         (go :left)
-        (traverse-find :left (comp (partial >= col) at-col)))))
+        (traverse-find :left to-col)))) 
 
 (defn go-down [dactyl]
   (let [col (at-col dactyl)]
