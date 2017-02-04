@@ -18,6 +18,9 @@
 (defn string [piece]
   (apply subs piece))
 
+(defn length [[_ from to]]
+  (- to from))
+
 (defn string->piece [s]
   [s 0 (count s)])
 
@@ -111,8 +114,9 @@
   char)
 
 (defn at-acc [{[[_ acc]] :right}]
-  (select-keys acc [:pos :col :row]))
+  acc)
 
+(def at-pos (comp :pos at-acc))
 (def at-col (comp :col at-acc))
 
 (defn debug [ting string] (println string) ting)
@@ -184,6 +188,24 @@
         go-end-of-line
         (go :right)
         (find-char :right \newline col))))
+
+(defn split-phalange [phalange split-acc]
+  (let [left (:left phalange)
+        [[[s from to] acc] & right] (:right phalange)
+        split-offset (- (:pos split-acc) (at-pos phalange))]
+    (if (< 0 split-offset (- to from))
+      (let [prev [[s from (+ from split-offset)] acc] 
+            next [[s (+ from split-offset) to] split-acc]] 
+        (assoc phalange
+               :right (conj right next)
+               :left  (conj left prev)))
+      phalange)))
+  
+(defn split-dactyl [dactyl]
+  (if (end-of-zipper? dactyl :left)
+    dactyl
+    (assoc dactyl :left nil
+                 :up (split-phalange (:up dactyl) (at-acc dactyl)))))
 
 (comment
   (def dactyl (make-dactyl ["The cat\n" "Sat on\n" "The mat\n"]))

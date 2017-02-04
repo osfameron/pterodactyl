@@ -75,6 +75,7 @@
          (pair-reductions acc-char acc-init (seq "ab\nabc\n\na")))))
 
 ;; helpers to do is testing within a -> pipeline
+
 (defn is= [x y]
   (is (= x y))
   x)
@@ -83,8 +84,8 @@
   (is (= c (at-char dactyl)))
   dactyl)
 
-(defn is? [x pred? y]
-  (is (pred? x y))
+(defn is? [x pred?]
+  (is (pred? x))
   x)
 
 (def d2 (make-dactyl ["The cat\n" "Sat on\n" "The mat\n"]))
@@ -108,4 +109,11 @@
     (go-down)
     (is=char \h)
     (go-up)
-    (is=char \a)))
+    (is=char \a)
+    (is? #(not (end-of-zipper? % :left))) 
+    (split-dactyl)
+    (is? #(end-of-zipper? % :left)) 
+    (is=char \a)
+    (go :left)
+    (is? #(end-of-zipper? % :right)) 
+    (is=char \S)))
