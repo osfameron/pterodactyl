@@ -39,7 +39,7 @@
   (let [[x & xs] (dir z)
         rev (reversed dir)]
     (if (end-of-zipper? z dir)
-        z
+        nil
         (assoc z dir xs
                  rev (conj (rev z) x)))))
 
@@ -118,15 +118,12 @@
       (phalange->dactyl :right)))
 
 (defn go [dactyl dir]
-  (if (end-of-zipper? dactyl dir)
-    (let [up (:up dactyl)]
-      (if (end-of-zipper? up dir)
-        nil
-        (-> up
+  (or
+    (some-> dactyl
+            (traverse dir))
+    (some-> dactyl :up
             (traverse dir)
             (phalange->dactyl dir))))
-    (let [next (traverse dactyl dir)]
-        next)))
 
 ;; todo replace with unrolled version
 (defn partial> [f & end-args]
