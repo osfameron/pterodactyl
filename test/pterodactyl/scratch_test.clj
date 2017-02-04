@@ -62,7 +62,7 @@
               '((\H {:pos 0}))}
            pos1))))
 
-(deftest test-acc-piece
+(deftest test-acc-char
   (is (= [[\a {:pos 0 :row 0 :col 0}]
           [\b {:pos 1 :row 0 :col 1}]
           [\newline {:pos 2 :row 0 :col 2}]
@@ -72,7 +72,7 @@
           [\newline {:pos 6 :row 1 :col 3}]
           [\newline {:pos 7 :row 2 :col 0}]
           [\a {:pos 8 :row 3 :col 0}]]
-         (pair-reductions acc-piece acc-init (seq "ab\nabc\n\na")))))
+         (pair-reductions acc-char acc-init (seq "ab\nabc\n\na")))))
 
 ;; helpers to do is testing within a -> pipeline
 (defn is= [x y]

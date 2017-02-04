@@ -70,7 +70,7 @@
 
 (def acc-init {:pos 0, :row 0, :col 0})
 
-(defn acc-piece [m c]
+(defn acc-char [m c]
     (-> m
         pos++
         (col-or-row++ c)))
@@ -80,23 +80,32 @@
       []
       (seq (string piece))))
 
-;; TODO: instead, make-phalange should be passed the acc-piece acculumator and
-;; contruct the table accumulator based on it.
-(defn acc-table [m p]
-  (reduce acc-piece m (piece->seq p)))
+(defn make-acc-table [acc-char]
+  (fn [m piece] (reduce acc-char m (piece->seq piece))))
 
-(defn strings->phalange [strings]
-  (let [pieces (mapv string->piece strings)
-        pieces (conj pieces :end)]
-    (make-zipper acc-table acc-init pieces)))
+(defn strings->phalange 
+  ([strings]
+   (strings->phalange strings acc-char))
 
-(def traverse-into-dactyl {:left end, :right identity})
+  ([strings acc-fn-piece]
+   (let [pieces (mapv string->piece strings)
+         pieces (conj pieces :end)
+         acc-fn (make-acc-table acc-fn-piece)]
+     (make-zipper acc-fn
+                  acc-init
+                  pieces
+                  {:acc-fn-piece acc-fn-piece}))))
 
 (defn phalange->dactyl [phalange dir]
   (let [[piece init] (first (:right phalange)) 
         xs (piece->seq piece)
-        dactyl (make-zipper acc-piece init xs {:up phalange})] 
-    ((traverse-into-dactyl dir) dactyl)))
+        acc-fn-piece (:acc-fn-piece phalange)
+        traverse-into (dir {:left end, :right identity})
+        dactyl (make-zipper acc-fn-piece
+                            init xs
+                            {:up phalange})] 
+    (-> dactyl
+        traverse-into)))
 
 (defn at-char [{[[char _]] :right}]
   char)
@@ -151,8 +160,7 @@
   (let [matcher (partial match-char c)]
     (traverse-find dactyl dir matcher limit)))
 
-(defn start-of-line? [dactyl]
-  (zero? (at-col dactyl)))
+(def start-of-line? (comp zero? at-col))
 
 (defn go-start-of-line [dactyl]
   (-> dactyl
