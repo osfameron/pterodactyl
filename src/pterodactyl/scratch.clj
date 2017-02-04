@@ -31,22 +31,20 @@
 ;;     :end (for phalange zipper)
 ;;     last-char (for dactyl zipper)
 (defn end-of-zipper? [z dir]
-  (let [fs {:left (comp empty?)
-            :right #(= 1 (count %))}]
-    ((dir fs) (dir z))))
+  (let [eoz? {:left empty?
+              :right (comp (partial = 1) count)}]
+    ((dir eoz?) (dir z))))
 
 (defn traverse [z dir]
-  (let [[x & xs] (dir z)
-        rev (reversed dir)]
-    (if (end-of-zipper? z dir)
-        nil
+  (if (end-of-zipper? z dir)
+      nil
+      (let [[x & xs] (dir z)
+            rev (reversed dir)]
         (assoc z dir xs
                  rev (conj (rev z) x)))))
 
 (defn end [dactyl]
-  (let [right (:right dactyl)
-        xs (butlast right)
-        x (last right)]
+  (let [[x xs] ((juxt last butlast) (:right dactyl))]
     (assoc dactyl :right (list x)
                   :left (reverse xs))))
 
@@ -100,7 +98,7 @@
         dactyl (make-zipper acc-piece init xs {:up phalange})] 
     ((traverse-into-dactyl dir) dactyl)))
 
-(defn at-char [{[[char]] :right}]
+(defn at-char [{[[char _]] :right}]
   char)
 
 (defn at-acc [{[[_ acc]] :right}]
