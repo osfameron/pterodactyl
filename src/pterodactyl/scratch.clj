@@ -80,7 +80,7 @@
 
 (defn piece->seq [piece]
   (if (= :end piece)
-      []
+      [piece]
       (seq (string piece))))
 
 (defn make-acc-table [acc-char]
@@ -105,7 +105,8 @@
         acc-fn-piece (:acc-fn-piece phalange)
         traverse-into (dir {:left end, :right identity})
         dactyl (make-zipper acc-fn-piece
-                            init xs
+                            init
+                            xs
                             {:up phalange})] 
     (-> dactyl
         traverse-into)))
@@ -164,11 +165,25 @@
   (let [matcher (partial match-char c)]
     (traverse-find dactyl dir matcher limit)))
 
-(def start-of-line? (comp zero? at-col))
+;; TODO go via phalange
+(defn go-start-of-buffer [dactyl]
+  (-> dactyl
+      (traverse-find :left (comp zero? :pos at-acc))))
+
+(defn all-pos [dactyl]
+  (-> dactyl
+      go-start-of-buffer
+      (#(map at-pos (stream % :right)))))
+
+(defn all-text [dactyl]
+  (-> dactyl
+      go-start-of-buffer
+      :up
+      (#(apply str (map (comp string first) (butlast (:right %)))))))
 
 (defn go-start-of-line [dactyl]
   (-> dactyl
-      (traverse-find :left start-of-line?)))
+      (traverse-find :left (comp zero? at-col))))
 
 (defn go-end-of-line [dactyl]
   (-> dactyl
@@ -205,7 +220,7 @@
   (if (end-of-zipper? dactyl :left)
     dactyl
     (assoc dactyl :left nil
-                 :up (split-phalange (:up dactyl) (at-acc dactyl)))))
+                  :up (split-phalange (:up dactyl) (at-acc dactyl)))))
 
 (comment
   (def dactyl (make-dactyl ["The cat\n" "Sat on\n" "The mat\n"]))

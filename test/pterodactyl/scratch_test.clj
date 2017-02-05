@@ -84,6 +84,10 @@
   (is (= c (at-char dactyl)))
   dactyl)
 
+(defn is=pos [dactyl p]
+  (is (= p (at-pos dactyl)))
+  dactyl)
+
 (defn is? [x pred?]
   (is (pred? x))
   x)
@@ -116,4 +120,35 @@
     (is=char \a)
     (go :left)
     (is? #(end-of-zipper? % :right)) 
-    (is=char \S)))
+    (is=char \S)
+    (is? #(= "The cat\nSat on\nThe mat\n" (all-text %)))))
+
+(deftest back-and-forth-forever
+  (is (= d2
+         (-> d2
+             (is=pos 0)
+             (stream :right)
+             last
+             (is=pos 23)
+             (stream :left)
+             last
+             (is=pos 0))))
+  (is (= (-> d2
+             (is=pos 0)
+             (stream :right)
+             last
+             (is=pos 23))
+         (-> d2
+             (is=pos 0)
+             (stream :right)
+             last
+             (is=pos 23)
+             (stream :left)
+             last
+             (is=pos 0)
+             (stream :right)
+             last
+             (is=pos 23)))))
+
+    ;(#(count (stream % :right)))))
+    ;(#(debug % (all-pos %)))))
