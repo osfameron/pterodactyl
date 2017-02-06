@@ -51,15 +51,6 @@
     (assoc dactyl :right (list x)
                   :left (reverse xs))))
 
-; generic modify function (probably not useful in this form for us)
-(defn modify [z n] 
-  (let [{:keys [:right]} z
-        acc-fn (:acc-fn (meta z))
-        [[_ acc] & rights] right
-        xs (cons n (map first (butlast rights)))
-        rights (pair-reductions acc-fn acc xs)]
-    (assoc z :right rights)))
-
 ; combinators to update position within buffer
 (defn pos++ [m] (update m :pos inc))
 (defn row++ [m] (update m :row inc))
@@ -221,6 +212,23 @@
     dactyl
     (assoc dactyl :left nil
                   :up (split-phalange (:up dactyl) (at-acc dactyl)))))
+
+(defn comb [phalange]
+  (let [acc-fn (:acc-fn (meta phalange))
+        [[_ acc] :as rights] (:right phalange)
+        xs (map first rights)
+        combed (pair-reductions acc-fn acc xs)]
+    (assoc phalange :right combed)))
+
+(defn insert [dactyl string]
+  (let [piece (string->piece string)
+        acc (at-acc dactyl)]
+    (-> dactyl
+        split-dactyl
+        :up
+        (update :right (partial cons [piece acc]))
+        comb
+        (phalange->dactyl :right))))
 
 (comment
   (def dactyl (make-dactyl ["The cat\n" "Sat on\n" "The mat\n"]))

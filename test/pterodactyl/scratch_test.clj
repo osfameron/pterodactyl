@@ -150,5 +150,21 @@
              last
              (is=pos 23)))))
 
+(deftest insertion
+  (is (= "Yes The cat\nSat on\nThe mat\n"
+         (-> d2
+             (insert "Yes ")
+             all-text)))
+  (is (= "The cat did\nSat on\nThe mat\n"
+         (-> d2
+             go-end-of-line
+             (insert " did")
+             all-text)))
+  (is (= "The cat\nDid Sat on\nThe mat\n"
+         (-> d2
+             go-down
+             (insert "Did ")
+             all-text))))
+
     ;(#(count (stream % :right)))))
     ;(#(debug % (all-pos %)))))
