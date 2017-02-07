@@ -197,27 +197,30 @@
 
 (defn split-phalange [phalange split-acc]
   (let [left (:left phalange)
-        [[[s from to] acc] & right] (:right phalange)
-        split-offset (- (:pos split-acc) (at-pos phalange))]
-    (if (< 0 split-offset (- to from))
-      (let [prev [[s from (+ from split-offset)] acc] 
-            next [[s (+ from split-offset) to] split-acc]] 
+        [[[s from to] orig-acc] & right] (:right phalange)
+        split-offset (- (:pos split-acc) (:pos orig-acc))
+        length (- to from)]
+    (if (< 0 split-offset length)
+      (let [pivot (+ from split-offset)
+            prev [[s from pivot] orig-acc] 
+            next [[s pivot to] split-acc]] 
         (assoc phalange
-               :right (conj right next)
-               :left  (conj left prev)))
+               :left  (conj left prev)
+               :right (conj right next)))
       phalange)))
   
 (defn split-dactyl [dactyl]
   (if (end-of-zipper? dactyl :left)
     dactyl
     (assoc dactyl :left nil
-                  :up (split-phalange (:up dactyl) (at-acc dactyl)))))
+                  :up (-> dactyl :up (split-phalange (at-acc dactyl))))))
 
 (defn comb [phalange]
   (let [acc-fn (:acc-fn (meta phalange))
         [[_ acc] :as rights] (:right phalange)
-        xs (map first rights)
-        combed (pair-reductions acc-fn acc xs)]
+        combed (->> rights
+                    (map first)
+                    (pair-reductions acc-fn acc))]
     (assoc phalange :right combed)))
 
 (defn insert [dactyl string]
