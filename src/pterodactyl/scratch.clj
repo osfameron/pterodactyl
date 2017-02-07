@@ -35,7 +35,7 @@
 ;;     last-char (for dactyl zipper)
 (defn end-of-zipper? [z dir]
   (let [eoz? {:left empty?
-              :right (comp (partial = 1) count)}]
+              :right (comp empty? rest)}]
     ((dir eoz?) (dir z))))
 
 (defn traverse [z dir]
