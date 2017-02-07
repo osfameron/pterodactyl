@@ -166,5 +166,23 @@
              (insert "Did ")
              all-text))))
 
-    ;(#(count (stream % :right)))))
-    ;(#(debug % (all-pos %)))))
+(deftest test-go-to
+  (is (= 10
+         (-> d2
+             (go-to 10)
+             at-pos)))
+  (is (= 15
+         (-> d2
+             (go-to 15)
+             at-pos)))
+  (is (= 5
+         (-> d2
+             (go-to 10)
+             (go-to 5)
+             at-pos))))
+
+;; TODO e.g. test that accumulator is correctly comb'd on insertion
+(-> d2
+   go-end-of-line
+   (insert "\n\n")
+   (#(doseq [p (stream % :right)] (println (at-acc p)))))

@@ -161,6 +161,13 @@
   (-> dactyl
       (traverse-find :left (comp zero? :pos at-acc))))
 
+(defn go-to [dactyl pos]
+  (let [delta (- pos (at-pos dactyl))]
+    (cond
+      (zero? delta) dactyl
+      (pos? delta) (nth (stream dactyl :right) delta)
+      (neg? delta) (nth (stream dactyl :left) (- delta)))))
+
 (defn all-pos [dactyl]
   (-> dactyl
       go-start-of-buffer
