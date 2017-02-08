@@ -90,17 +90,14 @@
                   pieces
                   {:acc-fn-piece acc-fn-piece}))))
 
-(defn phalange->dactyl [phalange dir]
+(defn phalange->dactyl [phalange]
   (let [[piece init] (first (:right phalange)) 
         xs (piece->seq piece)
-        acc-fn-piece (:acc-fn-piece phalange)
-        traverse-into (dir {:left end, :right identity})
-        dactyl (make-zipper acc-fn-piece
-                            init
-                            xs
-                            {:up phalange})] 
-    (-> dactyl
-        traverse-into)))
+        acc-fn-piece (:acc-fn-piece phalange)]
+      (make-zipper acc-fn-piece
+                  init
+                  xs
+                  {:up phalange}))) 
 
 (defn at-char [{[[char _]] :right}]
   char)
@@ -118,7 +115,11 @@
 (defn make-dactyl [strings]
   (-> strings
       strings->phalange
-      (phalange->dactyl :right)))
+      phalange->dactyl))
+
+(defn traverse-into [dactyl dir]
+  (let [f (dir {:right identity, :left end})]
+    (-> dactyl f)))
 
 (defn go [dactyl dir]
   (or
@@ -126,7 +127,8 @@
             (traverse dir))
     (some-> dactyl :up
             (traverse dir)
-            (phalange->dactyl dir))))
+            phalange->dactyl
+            (traverse-into dir))))
 
 ;; todo replace with unrolled version
 (defn partial> [f & end-args]
@@ -156,10 +158,12 @@
   (let [matcher (partial match-char c)]
     (traverse-find dactyl dir matcher limit)))
 
-;; TODO go via phalange
 (defn go-start-of-buffer [dactyl]
   (-> dactyl
-      (traverse-find :left (comp zero? :pos at-acc))))
+      :up
+      (stream :left)
+      last
+      phalange->dactyl))
 
 (defn go-to [dactyl pos]
   (let [delta (- pos (at-pos dactyl))]
@@ -220,7 +224,9 @@
   (if (end-of-zipper? dactyl :left)
     dactyl
     (assoc dactyl :left nil
-                  :up (-> dactyl :up (split-phalange (at-acc dactyl))))))
+                  :up (-> dactyl
+                          :up 
+                          (split-phalange (at-acc dactyl))))))
 
 (defn comb [phalange]
   (let [acc-fn (:acc-fn (meta phalange))
@@ -238,7 +244,7 @@
         :up
         (update :right (partial cons [piece acc]))
         comb
-        (phalange->dactyl :right))))
+        phalange->dactyl)))
 
 (defn cut [dactyl movement]
   ;; split both origin and end point, and make sure that both dactyls
@@ -255,7 +261,7 @@
         d' (-> pl
                (assoc :right (cons [target acc] rights))
                comb
-               (phalange->dactyl :right))]
+               phalange->dactyl)]
     [d' cut-pieces])) 
 
 (def delete (comp first cut))
