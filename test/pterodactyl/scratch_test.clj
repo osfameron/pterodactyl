@@ -167,13 +167,22 @@
              all-text))))
 
 (deftest test-delete
-  (is (= "That\nSat on\nThe mat\n"
-         (-> d2
-             (find-char :right \e)
-             (is=pos 2)
-             (delete #(find-char % :right \a))
-             (is=pos 2)
-             all-text))))
+  (testing "Delete forward"
+    (is (= "That\nSat on\nThe mat\n"
+           (-> d2
+               (find-char :right \e)
+               (is=pos 2)
+               (delete #(find-char % :right \a))
+               (is=pos 2)
+               all-text))))
+  (testing "Delete backward"
+    (is (= "That\nSat on\nThe mat\n"
+           (-> d2
+               (find-char :right \a)
+               (is=pos 5)
+               (delete #(find-char % :left \e))
+               (is=pos 2)
+               all-text)))))
 
 (deftest test-go-to
   (is (= 10
