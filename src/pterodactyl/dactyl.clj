@@ -1,346 +1,271 @@
 (ns pterodactyl.dactyl
-  (:require [taoensso.truss :as truss :refer (have have! have?)])
+  (:require [net.cgrand.seqexp :as se]) 
   (:gen-class))
 
-(declare debug)
+(defn pair-reductions [acc-fn init xs]
+  (map list
+       xs
+       (reductions acc-fn init xs)))
 
-(defprotocol Piece
-  (piece-length [p])
-  (piece-string [p])
-  (split-piece [p at]))
+; zipper is of [[thing acc] [thing acc] ...]
+(defn make-zipper [acc-fn init xs & [base]]
+  (let [rights (pair-reductions acc-fn init xs)]
+    (with-meta 
+      (assoc base :right rights
+                  :left nil)
+      {:acc-fn acc-fn})))
 
-(def piece? (partial satisfies? Piece))
+(defn string [piece]
+  (apply subs piece))
 
-(defrecord StringPiece [string from to]
-  Piece
-  (piece-length [piece]
-    (- (:to piece) (:from piece)))
+(defn length [[_ from to]]
+  (- to from))
 
-  (piece-string [piece]
-    (let [{:keys [:string :from :to]} piece]
-      (subs string from to)))
+(defn string->piece [s]
+  [s 0 (count s)])
 
-  (split-piece [piece at]
-    {:pre [(<= 0 at)
-           (< at (piece-length piece))]}
-    (if (zero? at)
+(def reversed {:left :right
+               :right :left}) 
+
+;; left and right are not mirror-images... ends look like:   [1 2 3 :end]
+;; so:
+;;    at left, have :left nil
+;;    at right, have :right ($end-item) e.g. 1 item, which will be either
+;;     :end (for phalange zipper)
+;;     last-char (for dactyl zipper)
+(defn end-of-zipper? [z dir]
+  (let [eoz? {:left empty?
+              :right (comp empty? rest)}]
+    ((dir eoz?) (dir z))))
+
+(defn traverse [z dir]
+  (if (end-of-zipper? z dir)
+      nil
+      (let [[x & xs] (dir z)
+            rev (reversed dir)]
+        (assoc z dir xs
+                 rev (conj (rev z) x)))))
+
+(defn end [dactyl]
+  (let [[x xs] ((juxt last butlast) (:right dactyl))]
+    (assoc dactyl :right (list x)
+                  :left (reverse xs))))
+
+; combinators to update position within buffer
+(defn pos++ [m] (update m :pos inc))
+(defn row++ [m] (update m :row inc))
+(defn col++ [m] (update m :col inc))
+(defn col0  [m] (assoc m :col 0))
+(def crlf (comp row++ col0))
+(defn col-or-row++ [m c]
+  (if (= \newline c)
+    (crlf m)
+    (col++ m)))
+
+(def acc-init {:pos 0, :row 0, :col 0})
+
+(defn acc-char [m c]
+    (-> m
+        pos++
+        (col-or-row++ c)))
+
+(defn piece->seq [piece]
+  (if (= :end piece)
       [piece]
-      (let [pos (+ at (:from piece))
-            before (assoc piece :to pos)
-            after (assoc piece :from pos)]
-       [before after]))))
+      (seq (string piece))))
 
-(defn string->piece [string]
-  {:pre [(string? string)]}
-  (StringPiece. string 0 (count string)))
+(defn make-acc-table [acc-char]
+  (fn [m piece] (reduce acc-char m (piece->seq piece))))
 
-(def END-OF-BUFFER
-  (reify
-    Object
-    (toString [_] "<END-OF-BUFFER>")
-    Piece
-    (piece-length [_] 1)
-    (piece-string [_] "")
-    (split-piece [p _] [p])))
+(defn strings->phalange 
+  ([strings]
+   (strings->phalange strings acc-char))
 
-; zipper class, a finger onto the data
-; (Clojure has zippers, but they seem to be only on hierarchical data
-; structures?)
-; NB: the accumulator will probably become a record, rather than a single pos
-(defrecord Dactyl [back pieces acc-pos curr-pos])
+  ([strings acc-fn-piece]
+   (let [pieces (mapv string->piece strings)
+         pieces (conj pieces :end)
+         acc-fn (make-acc-table acc-fn-piece)]
+     (make-zipper acc-fn
+                  acc-init
+                  pieces
+                  {:acc-fn-piece acc-fn-piece}))))
 
-(def dactyl? (partial instance? Dactyl))
+(defn phalange->dactyl [phalange]
+  (let [[piece init] (first (:right phalange)) 
+        xs (piece->seq piece)
+        acc-fn-piece (:acc-fn-piece phalange)]
+      (make-zipper acc-fn-piece
+                  init
+                  xs
+                  {:up phalange}))) 
 
-(def empty-dactyl
-  (Dactyl. '() '() 0 0))
+(defn at-char [{[[char _]] :right}]
+  char)
 
-(defn pieces->dactyl [pieces]
-  {:pre [(every? piece? pieces)]}
-  (assoc empty-dactyl :pieces (concat pieces [END-OF-BUFFER])))
+(defn at-acc [{[[_ acc]] :right}]
+  acc)
 
-(defn strings->dactyl [strings]
-  {:pre [(every? string? strings)]}
-  (->> strings
-       (map string->piece)
-       (pieces->dactyl)))
+(def at-pos (comp :pos at-acc))
+(def at-col (comp :col at-acc))
 
-(defn curr [dactyl]
-  {:pre [(dactyl? dactyl)]}
-  (first (:pieces dactyl)))
+(defn debug [ting string] (println string) ting)
+(defn debug-dactyl [dactyl]
+  (debug dactyl (str "@ " (at-acc dactyl) "{" (at-char dactyl) "}"))) 
 
-(defn curr-text [dactyl]
-  {:pre [(dactyl? dactyl)]}
-  (piece-string (curr dactyl)))
+(defn make-dactyl [strings]
+  (-> strings
+      strings->phalange
+      phalange->dactyl))
 
-(defn curr-text-post [dactyl]
-  {:pre [(dactyl? dactyl)]}
-  (subs (curr-text dactyl) (:curr-pos dactyl)))
+(defn traverse-into [dactyl dir]
+  (let [f (dir {:right identity, :left end})]
+    (-> dactyl f)))
 
-(defn curr-text-pre [dactyl]
-  {:pre [(dactyl? dactyl)]}
-  (subs (curr-text dactyl) 0 (:curr-pos dactyl)))
+(defn go [dactyl dir]
+  (or
+    (some-> dactyl
+            (traverse dir))
+    (some-> dactyl :up
+            (traverse dir)
+            phalange->dactyl
+            (traverse-into dir))))
 
-(defn curr-pos-post [dactyl]
-  {:pre [(dactyl? dactyl)]}
-  "Number of characters from curr-pos to end of piece (dual of curr-pos)"
-  (- (piece-length (curr dactyl)) (:curr-pos dactyl)))
+;; todo replace with unrolled version
+(defn partial> [f & end-args]
+  (fn [& start-args] (apply f (concat start-args end-args)))) 
 
-(defn dactyl-pos [dactyl]
-  {:pre [(dactyl? dactyl)]}
-  (+ (:acc-pos dactyl) (:curr-pos dactyl)))
+(defn stream [dactyl dir]
+  (take-while (complement nil?)
+              (iterate (partial> go dir) dactyl))) 
 
-(defn traverse-prev [dactyl]
-  {:pre [(dactyl? dactyl)]}
-  (let [{:keys [:back :pieces :acc-pos]} dactyl]
-    (if (empty? back)
-      nil
-      (let [new (first back)
-            length (piece-length new)
-            last-pos (dec length)]
-        (assoc dactyl
-               :back (rest back)
-               :pieces (conj pieces new)
-               :acc-pos (- acc-pos length)
-               :curr-pos last-pos)))))
+(defn match-char [char dactyl]
+  (= char (at-char dactyl))) 
 
-(defn traverse-next [dactyl]
-  {:pre [(dactyl? dactyl)]}
-  (let [{:keys [:back :pieces :acc-pos]} dactyl
-        next (rest pieces)]
-    (if (empty? next)
-      nil
-      (let [old (first pieces)]
-        (assoc dactyl
-               :back (conj back old)
-               :pieces next
-               :acc-pos (+ acc-pos (piece-length old)) 
-               :curr-pos 0)))))
+(defn find-in-stream [stream matcher repeater]
+  (->> stream
+       (se/exec
+         (repeater (complement matcher)))
+       :rest
+       first))
 
-(defn unbounce [dactyl]
-  {:pre [(dactyl? dactyl)]}
-  (dissoc dactyl :bounce))
+(defn traverse-find [dactyl dir matcher & [limit]]
+   (let [ds (stream dactyl dir) 
+         repeater (if limit (partial se/repeat 0 limit) se/*)] 
+     (or (find-in-stream ds matcher repeater)
+         dactyl)))
 
-(defn traverse-forward 
-  ([dactyl] (traverse-forward dactyl 1))
-  ([dactyl count]
-   {:pre [(dactyl? dactyl)
-          (<= 0 count)]}
-   (let [dactyl (unbounce dactyl)
-         avail (curr-pos-post dactyl)]
-     (cond
-       (zero? count) dactyl
-       (< count avail) (update dactyl :curr-pos (partial + count))
-       :else 
-         (let [next (traverse-next dactyl)
-               last-pos (dec (piece-length (curr dactyl)))]
-           (if (nil? next)
-             (assoc dactyl
-                    :bounce :right,
-                    :curr-pos last-pos)
-             (recur next (- count avail))))))))
+(defn find-char [dactyl dir c & [limit]]
+  (let [matcher (partial match-char c)]
+    (traverse-find dactyl dir matcher limit)))
 
-(defn traverse-backward 
-  ([dactyl] (traverse-backward dactyl 1))
-  ([dactyl count]
-   {:pre [(dactyl? dactyl)
-          (<= 0 count)]}
-   (let [dactyl (unbounce dactyl)
-         avail (:curr-pos dactyl)]
-     (cond
-       (zero? count) dactyl
-       (<= count avail) (update dactyl :curr-pos #(- % count))
-       :else 
-         (let [next (traverse-prev dactyl)
-               steps-to-prev-piece (inc avail)]
-           (if (nil? next)
-             (assoc dactyl :bounce :left, :curr-pos 0)
-             (recur next (- count steps-to-prev-piece))))))))
+(defn go-start-of-buffer [dactyl]
+  (-> dactyl
+      :up
+      (stream :left)
+      last
+      phalange->dactyl))
 
-(defn goto [dactyl pos]
-  {:pre [(dactyl? dactyl)
-         (<= 0 pos)]}
-  (if (zero? pos)
-    (assoc dactyl :curr-pos 0
-                  :acc-pos 0
-                  :pieces (apply (partial conj (:pieces dactyl)) (:back dactyl))
-                  :back '())
-    (let [curr-pos (dactyl-pos dactyl)]
-      (cond
-        (= pos curr-pos) dactyl
-        (> pos curr-pos) (traverse-forward dactyl (- pos curr-pos))
-        (< pos curr-pos) (traverse-backward dactyl (- curr-pos pos))))))
+(defn go-to [dactyl pos]
+  (let [delta (- pos (at-pos dactyl))]
+    (cond
+      (zero? delta) dactyl
+      (pos? delta) (-> dactyl (stream :right) (nth delta))
+      (neg? delta) (-> dactyl (stream :left) (nth (- delta))))))
 
-; mostly cargo culted from (some->)
-(defmacro =>
-  "When expr is not :bounce, threads it into the first form (via ->),
-  and when that result is not :bounce, through the next etc.
-  NB: => is GREEDY, so will return the last :bounce'd dactyl.
-  See `traverse` for a non-greedy algorithm."
-  [expr & forms]
-  (let [g (gensym)
-        steps (map (fn [step] `(if (:bounce ~g) ~g (-> ~g ~step)))
-                   forms)]
-    `(let [~g ~expr
-           ~@(interleave (repeat g) (butlast steps))]
-       ~(if (empty? steps)
-          g
-          (last steps)))))
+(defn all-pos [dactyl]
+  (-> dactyl
+      go-start-of-buffer
+      (#(map at-pos (stream % :right)))))
 
-(defn traverse [dactyl traversals]
-  "non-greedy :bounce short-circuiting traversal reduction"
-  (reduce
-    (fn [d f]
-      (let [d' (f d)]
-        (if-let [bounce (:bounce d')]
-          (reduced (assoc d :bounce bounce))
-          d')))
-    (unbounce dactyl)
-    traversals))
+(defn all-text [dactyl]
+  (-> dactyl
+      go-start-of-buffer
+      :up
+      (#(apply str (map (comp string first) (butlast (:right %)))))))
 
-(defn dactyl-delta [d1 d2]
-  (apply - (map dactyl-pos [d2 d1])))
+(defn go-start-of-line [dactyl]
+  (-> dactyl
+      (traverse-find :left (comp zero? at-col))))
 
+(defn go-end-of-line [dactyl]
+  (-> dactyl
+      (find-char :right \newline)))
+
+(defn go-up [dactyl]
+  (let [col (at-col dactyl)
+        to-col (comp (partial >= col) at-col)]
+    (-> dactyl
+        go-start-of-line
+        (go :left)
+        (traverse-find :left to-col)))) 
+
+(defn go-down [dactyl]
+  (let [col (at-col dactyl)]
+    (-> dactyl
+        go-end-of-line
+        (go :right)
+        (find-char :right \newline col))))
+
+(defn split-phalange [phalange split-acc]
+  (let [left (:left phalange)
+        [[[s from to] orig-acc] & right] (:right phalange)
+        split-offset (- (:pos split-acc) (:pos orig-acc))
+        length (- to from)]
+    (if (< 0 split-offset length)
+      (let [pivot (+ from split-offset)
+            prev [[s from pivot] orig-acc] 
+            next [[s pivot to] split-acc]] 
+        (assoc phalange
+               :left  (conj left prev)
+               :right (conj right next)))
+      phalange)))
+  
 (defn split-dactyl [dactyl]
-  {:pre [(dactyl? dactyl)]
-   :post [dactyl?]}
-  "Split the dactyl at current insertion point.  Anything to left of curr-pos
-  will become a new piece.  Noop if we are at far-left of piece."
-  (let [{:keys [curr-pos back pieces acc-pos]} dactyl]
-    (if (zero? curr-pos)
-      dactyl
-      (let [[pre post] (split-piece (curr dactyl) curr-pos)]
-        (assoc dactyl
-               :back (conj back pre)
-               :pieces (conj (rest pieces) post)
-               :curr-pos 0
-               :acc-pos (dactyl-pos dactyl))))))
+  (if (end-of-zipper? dactyl :left)
+    dactyl
+    (assoc dactyl :left nil
+                  :up (-> dactyl
+                          :up 
+                          (split-phalange (at-acc dactyl))))))
+
+(defn comb [phalange]
+  (let [acc-fn (:acc-fn (meta phalange))
+        [[_ acc] :as rights] (:right phalange)
+        combed (->> rights
+                    (map first)
+                    (pair-reductions acc-fn acc))]
+    (assoc phalange :right combed)))
+
+(defn insert [dactyl string]
+  (let [piece (string->piece string)
+        acc (at-acc dactyl)]
+    (-> dactyl
+        split-dactyl
+        :up
+        (update :right (partial cons [piece acc]))
+        comb
+        phalange->dactyl)))
 
 (defn cut [dactyl movement]
-  {:pre [(dactyl? dactyl)
-         (fn? movement)]}
   ;; split both origin and end point, and make sure that both dactyls
   ;; have both splits in their piece lists by moving *back* to origin
   ;; this allows us to take-while identical? instead of having to do
   ;; any more complicated calculation.
-  (let [dactyl (split-dactyl dactyl)
-        other (split-dactyl (have dactyl? (movement dactyl)))
-        dactyl (goto other (dactyl-pos dactyl))
-        [d1 d2] (sort-by dactyl-pos [dactyl other])
-        target (first (:pieces d2))
-        cut-pieces (vec (take-while #(not (identical? % target)) (:pieces d1))) 
-        deleted-dactyl (assoc d1 :pieces (:pieces d2))]
-    [deleted-dactyl cut-pieces])) 
+  (let [d1 (-> dactyl split-dactyl movement split-dactyl)
+        d2 (-> d1 (go-to (at-pos dactyl)))
+        [pl pr] (map :up (sort-by at-pos [d1 d2]))
+        acc (at-acc pl)
+        [[target _] & rights] (:right pr)
+        cut-pieces (take-while (complement (partial identical? target))
+                               (map first (:right pl)))
+        d' (-> pl
+               (assoc :right (cons [target acc] rights))
+               comb
+               phalange->dactyl)]
+    [d' cut-pieces])) 
 
-(def delete-to (comp first cut))
-(def copy-range (comp second cut))
+(def delete (comp first cut))
 
-(defn insert [dactyl string]
-  {:pre [(dactyl? dactyl)
-         (string? string)]
-   :post [dactyl?]}
-  (let [piece (string->piece string)
-        dactyl (split-dactyl dactyl)]
-    (update dactyl :pieces (partial cons piece))))
-
-(defn text-after
-  ([dactyl] 
-   {:pre [(dactyl? dactyl)]}
-   (apply str (map piece-string (:pieces (split-dactyl dactyl))))) 
-
-  ([dactyl length] 
-   {:pre [(dactyl? dactyl)
-          (<= 0 length)]}
-   (let [pieces (copy-range dactyl #(traverse-forward % length))]
-      (apply str (map piece-string pieces)))))
-
-(defn all-text [dactyl]
-  {:pre [(dactyl? dactyl)]}
-  (-> dactyl (goto 0) (text-after)))
-
-(defn till [dactyl dir string]
-  {:pre [(dactyl? dactyl)
-         (string? string)]}
-  (let [nudge (have (dir {:left traverse-backward, :right traverse-forward}))
-        length (count string)]
-    (loop [d dactyl]
-      (let [d' (nudge d)]
-        (if (or 
-              (= string (text-after d' length))
-              (:bounce d'))
-            d'
-            (recur d'))))))
-
-(def right-till #(till %1 :right %2))
-(def left-till  #(till %1 :left %2))
-
-(defn go-end-of-prev-line [dactyl]
-  (traverse dactyl [#(left-till % "\n")]))
-
-(defn go-start-of-line [dactyl]
-  (=> dactyl (left-till "\n")
-             (traverse-forward)))
-
-(defn go-end-of-line [dactyl]
-  (=> dactyl
-      (right-till "\n")))
-
-(defn go-start-of-next-line [dactyl]
-  (traverse dactyl [go-end-of-line traverse-forward]))
-
-(defn col-pos [dactyl]
-  (let [start (go-start-of-line dactyl)]
-    (dactyl-delta start dactyl)))
-
-(defn row-pos 
-  ([dactyl]
-   (row-pos dactyl 0))
-
-  ([dactyl c]
-   (let [prev (go-end-of-prev-line dactyl)] 
-     (if (:bounce prev)
-        c
-        (recur prev (inc c))))))
-
-(defn go-col [dactyl col]
-  {:pre [(dactyl? dactyl)
-         (<= 0 col)]}
-  (let [current-col (col-pos dactyl)
-        eol (go-end-of-line dactyl)
-        eol-pos (col-pos eol)
-        delta (- col current-col)]
-    (cond
-      (= col current-col) dactyl
-      (< col current-col) (traverse-backward  dactyl (- delta))
-      (> col eol-pos)     eol
-      (> col current-col) (traverse-forward dactyl delta))))
-
-(defn traverse-down
-  ([dactyl]
-   (traverse-down dactyl 1))
-  ([dactyl steps]
-   (let [col (col-pos dactyl)]
-     (-> dactyl
-         (traverse (repeat steps go-start-of-next-line))
-         (go-col col)))))
-
-(defn traverse-up
-  ([dactyl]
-   (traverse-up dactyl 1))
-  ([dactyl steps]
-   (let [col (col-pos dactyl)]
-     (-> dactyl
-         (traverse (repeat steps go-end-of-prev-line))
-         (go-col col)))))
-
-(def debugging (atom true))
-(defn debug [dactyl & [tag]]
-  "debug function which returns dactyl, allowing it to be easily added into => or traverse pipeline"
-  (when @debugging
-    (println (str "DEBUG " tag " => " {:curr-pos (:curr-pos dactyl) :dpos (dactyl-pos dactyl)} " " (text-after dactyl 5) "...")))
-  dactyl)
-
-; next steps
-  ; rework accumulators to reduce framework of nested zippers, as per
-  ; scratch.clj
-    ;; go to line
-    ;; fix go up/down
+(comment
+  (def dactyl (make-dactyl ["The cat\n" "Sat on\n" "The mat\n"]))
+  (map at-char (take 26 (stream dactyl :right))))
