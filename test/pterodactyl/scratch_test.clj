@@ -166,6 +166,15 @@
              (insert "Did ")
              all-text))))
 
+(deftest test-delete
+  (is (= "That\nSat on\nThe mat\n"
+         (-> d2
+             (find-char :right \e)
+             (is=pos 2)
+             (delete #(find-char % :right \a))
+             (is=pos 2)
+             all-text))))
+
 (deftest test-go-to
   (is (= 10
          (-> d2
@@ -182,7 +191,8 @@
              at-pos))))
 
 ;; TODO e.g. test that accumulator is correctly comb'd on insertion
-(-> d2
-   go-end-of-line
-   (insert "\n\n")
-   (#(doseq [p (stream % :right)] (println (at-acc p)))))
+(comment
+  (-> d2
+     go-end-of-line
+     (insert "\n\n")
+     (#(doseq [p (stream % :right)] (println (at-acc p))))))

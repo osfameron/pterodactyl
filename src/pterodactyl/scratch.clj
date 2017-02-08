@@ -165,8 +165,8 @@
   (let [delta (- pos (at-pos dactyl))]
     (cond
       (zero? delta) dactyl
-      (pos? delta) (nth (stream dactyl :right) delta)
-      (neg? delta) (nth (stream dactyl :left) (- delta)))))
+      (pos? delta) (-> dactyl (stream :right) (nth delta))
+      (neg? delta) (-> dactyl (stream :left) (nth (- delta))))))
 
 (defn all-pos [dactyl]
   (-> dactyl
@@ -239,6 +239,26 @@
         (update :right (partial cons [piece acc]))
         comb
         (phalange->dactyl :right))))
+
+(defn cut [dactyl movement]
+  ;; split both origin and end point, and make sure that both dactyls
+  ;; have both splits in their piece lists by moving *back* to origin
+  ;; this allows us to take-while identical? instead of having to do
+  ;; any more complicated calculation.
+  (let [d1 (-> dactyl split-dactyl movement split-dactyl)
+        d2 (-> d1 (go-to (at-pos dactyl)))
+        [pl pr] (map :up (sort-by at-pos [d1 d2]))
+        acc (at-acc pl)
+        [[target _] & rights] (:right pr)
+        cut-pieces (take-while (complement (partial identical? target))
+                               (map first (:right pl)))
+        d' (-> pl
+               (assoc :right (cons [target acc] rights))
+               comb
+               (phalange->dactyl :right))]
+    [d' cut-pieces])) 
+
+(def delete (comp first cut))
 
 (comment
   (def dactyl (make-dactyl ["The cat\n" "Sat on\n" "The mat\n"]))
