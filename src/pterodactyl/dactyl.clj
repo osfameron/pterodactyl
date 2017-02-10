@@ -2,7 +2,13 @@
   (:require [net.cgrand.seqexp :as se]) 
   (:gen-class))
 
-(defn pair-reductions [acc-fn init xs]
+;; ## Pterodactyl: a programmer's text editor for winged dinosaurs
+
+;; ### Making paired zippers
+
+(defn pair-reductions 
+  "Pair reductions"
+  [acc-fn init xs]
   (map list
        xs
        (reductions acc-fn init xs)))
@@ -15,24 +21,17 @@
                   :left nil)
       {:acc-fn acc-fn})))
 
-(defn string [piece]
-  (apply subs piece))
-
-(defn length [[_ from to]]
-  (- to from))
-
-(defn string->piece [s]
-  [s 0 (count s)])
-
 (def reversed {:left :right
                :right :left}) 
 
 ;; left and right are not mirror-images... ends look like:   [1 2 3 :end]
 ;; so:
-;;    at left, have :left nil
-;;    at right, have :right ($end-item) e.g. 1 item, which will be either
-;;     :end (for phalange zipper)
-;;     last-char (for dactyl zipper)
+;;
+;;   - at left, have :left nil
+;;   - at right, have
+;;      - :right ($end-item) e.g. 1 item, which will be either)
+;;      - :end (for phalange zipper)
+;;        or last-char (for dactyl zipper)
 (defn end-of-zipper? [z dir]
   (let [eoz? {:left empty?
               :right (comp empty? rest)}]
@@ -46,12 +45,10 @@
         (assoc z dir xs
                  rev (conj (rev z) x)))))
 
-(defn end [dactyl]
-  (let [[x xs] ((juxt last butlast) (:right dactyl))]
-    (assoc dactyl :right (list x)
-                  :left (reverse xs))))
+;; ## The Accumulator
 
-; combinators to update position within buffer
+;; ### Combinators to update position within buffer
+
 (defn pos++ [m] (update m :pos inc))
 (defn row++ [m] (update m :row inc))
 (defn col++ [m] (update m :col inc))
@@ -68,6 +65,17 @@
     (-> m
         pos++
         (col-or-row++ c)))
+
+;; ## The Piece and the Phalange
+
+(defn string [piece]
+  (apply subs piece))
+
+(defn length [[_ from to]]
+  (- to from))
+
+(defn string->piece [s]
+  [s 0 (count s)])
 
 (defn piece->seq [piece]
   (if (= :end piece)
@@ -90,6 +98,8 @@
                   pieces
                   {:acc-fn-piece acc-fn-piece}))))
 
+;; ## The Dactyl
+
 (defn phalange->dactyl [phalange]
   (let [[piece init] (first (:right phalange)) 
         xs (piece->seq piece)
@@ -99,6 +109,23 @@
                   xs
                   {:up phalange}))) 
 
+(defn make-dactyl [strings]
+  (-> strings
+      strings->phalange
+      phalange->dactyl))
+
+(defn end [dactyl]
+  (let [[x xs] ((juxt last butlast) (:right dactyl))]
+    (assoc dactyl :right (list x)
+                  :left (reverse xs))))
+
+(defn traverse-into [dactyl dir]
+  (let [f (dir {:right identity, :left end})]
+    (-> dactyl f)))
+
+
+;; ### Information about the Dactyl
+
 (defn at-char [{[[char _]] :right}]
   char)
 
@@ -107,19 +134,13 @@
 
 (def at-pos (comp :pos at-acc))
 (def at-col (comp :col at-acc))
+(def at-row (comp :row at-acc))
 
 (defn debug [ting string] (println string) ting)
 (defn debug-dactyl [dactyl]
   (debug dactyl (str "@ " (at-acc dactyl) "{" (at-char dactyl) "}"))) 
 
-(defn make-dactyl [strings]
-  (-> strings
-      strings->phalange
-      phalange->dactyl))
-
-(defn traverse-into [dactyl dir]
-  (let [f (dir {:right identity, :left end})]
-    (-> dactyl f)))
+;; ### Traversals
 
 (defn go [dactyl dir]
   (or
@@ -130,13 +151,14 @@
             phalange->dactyl
             (traverse-into dir))))
 
-;; todo replace with unrolled version
+; Utility function. todo replace with unrolled version
 (defn partial> [f & end-args]
   (fn [& start-args] (apply f (concat start-args end-args)))) 
 
 (defn stream [dactyl dir]
-  (take-while (complement nil?)
-              (iterate (partial> go dir) dactyl))) 
+  (->> dactyl
+       (iterate (partial> go dir))
+       (take-while (complement nil?))))
 
 (defn match-char [char dactyl]
   (= char (at-char dactyl))) 
@@ -181,7 +203,9 @@
   (-> dactyl
       go-start-of-buffer
       :up
-      (#(apply str (map (comp string first) (butlast (:right %)))))))
+      (#(apply str
+               (map (comp string first)
+                    (butlast (:right %)))))))
 
 (defn go-start-of-line [dactyl]
   (-> dactyl
@@ -190,6 +214,16 @@
 (defn go-end-of-line [dactyl]
   (-> dactyl
       (find-char :right \newline)))
+
+(defn go-to-row [dactyl row]
+  (let [curr-row (at-row dactyl)
+        match-row (comp (partial = row) at-row)]
+    (if (= row curr-row)
+      (-> dactyl go-start-of-line)
+      (let [match-row (comp (partial = row) at-row)
+            dir (if (> row curr-row) :right :left)]
+        (-> dactyl
+            (traverse-find dir match-row)))))) 
 
 (defn go-up [dactyl]
   (let [col (at-col dactyl)
@@ -206,6 +240,8 @@
         (go :right)
         (find-char :right \newline col))))
 
+;; ## Splitting
+
 (defn split-phalange [phalange split-acc]
   (let [left (:left phalange)
         [[[s from to] orig-acc] & right] (:right phalange)
@@ -220,21 +256,29 @@
                :right (conj right next)))
       phalange)))
   
+(defn dactyl->split-phalange [dactyl]
+  (let [acc (at-acc dactyl)]
+    (-> dactyl
+        :up
+        (split-phalange acc))))
+
 (defn split-dactyl [dactyl]
   (if (end-of-zipper? dactyl :left)
     dactyl
     (assoc dactyl :left nil
-                  :up (-> dactyl
-                          :up 
-                          (split-phalange (at-acc dactyl))))))
+                  :up (-> dactyl dactyl->split-phalange))))
+
+;; ## Combing
 
 (defn comb [phalange]
   (let [acc-fn (:acc-fn (meta phalange))
-        [[_ acc] :as rights] (:right phalange)
-        combed (->> rights
-                    (map first)
-                    (pair-reductions acc-fn acc))]
-    (assoc phalange :right combed)))
+        [[_ acc] :as rights] (:right phalange)]
+    (->> rights
+         (map first)
+         (pair-reductions acc-fn acc)
+         (assoc phalange :right))))
+
+;; ## Modifying the buffer
 
 (defn insert [dactyl string]
   (let [piece (string->piece string)
@@ -254,8 +298,12 @@
   (let [d1 (-> dactyl split-dactyl movement split-dactyl)
         d2 (-> d1 (go-to (at-pos dactyl)))
         [pl pr] (map :up (sort-by at-pos [d1 d2]))
+        ;;; TODO split these 2 functions here
         acc (at-acc pl)
         [[target _] & rights] (:right pr)
+
+
+        ;; TODO perhaps make target the whole thing and swap the map and the take-while?
         cut-pieces (take-while (complement (partial identical? target))
                                (map first (:right pl)))
         d' (-> pl

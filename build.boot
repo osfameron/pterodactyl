@@ -1,14 +1,15 @@
 (def project 'pterodactyl)
 (def version "0.1.0-SNAPSHOT")
 
-(set-env! :resource-paths #{"resources" "src"}
-          :source-paths   #{"test"}
+(set-env! :resource-paths #{"src" "test"}
+          :source-paths   #{"src"}
           :dependencies   '[[org.clojure/clojure "1.8.0"]
                             [adzerk/boot-test "RELEASE" :scope "test"]
                             [com.taoensso/truss "1.3.6"]
                             [clojure-lanterna "0.9.7"]
                             [automat "0.2.0"]
-                            [net.cgrand/seqexp "0.6.1"]])
+                            [net.cgrand/seqexp "0.6.1"]
+                            [it.frbracch/boot-marginalia "0.1.3-1"]])
 
 (task-options!
  pom {:project     project
@@ -34,3 +35,4 @@
   (apply (resolve 'app/-main) args))
 
 (require '[adzerk.boot-test :refer [test]])
+(require '[it.frbracch.boot-marginalia :refer [marginalia]])
