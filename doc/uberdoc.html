@@ -2960,13 +2960,10 @@ e.g. 1 item, which will be either)
 
 <p>(Plugins may add additional keys in future.)</p>
 </td><td class="codes"><pre class="brush: clojure">(def acc-init
-  {:pos 0, :row 0, :col 0})</pre></td></tr><tr><td class="docs"><p>Return :pos of the zipper</p>
-</td><td class="codes"><pre class="brush: clojure">(def at-pos 
-  (comp :pos at-acc))</pre></td></tr><tr><td class="docs"><p>Return :col of the zipper</p>
-</td><td class="codes"><pre class="brush: clojure">(def at-col
-  (comp :col at-acc))</pre></td></tr><tr><td class="docs"><p>Return :row of the zipper</p>
-</td><td class="codes"><pre class="brush: clojure">(def at-row
-  (comp :row at-acc))</pre></td></tr><tr><td class="docs"><p>Accumulator functions take the next character in our text stream and return
+  {:pos 0, :row 0, :col 0})</pre></td></tr><tr><td class="docs"><p>Helper routines to return pos/col/row of accumulator of focus of zipper</p>
+</td><td class="codes"><pre class="brush: clojure">(def at-pos (comp :pos at-acc))
+(def at-col (comp :col at-acc))
+(def at-row (comp :row at-acc))</pre></td></tr><tr><td class="docs"><p>Accumulator functions take the next character in our text stream and return
 an updated accumulator map.</p>
 </td><td class="codes"></td></tr><tr><td class="docs"><h3>Combinators to update position within buffer</h3>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>First, we define some simple combinators to update the map.</p>
