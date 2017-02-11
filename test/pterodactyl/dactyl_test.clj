@@ -81,7 +81,7 @@
   x)
 
 (defn is=char [dactyl c]
-  (is (= c (at-char dactyl)))
+  (is (= c (at-value dactyl)))
   dactyl)
 
 (defn is=pos [dactyl p]

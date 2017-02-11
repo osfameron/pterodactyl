@@ -5,18 +5,15 @@
           :source-paths   #{"src"}
           :dependencies   '[[org.clojure/clojure "1.8.0"]
                             [adzerk/boot-test "RELEASE" :scope "test"]
-                            [com.taoensso/truss "1.3.6"]
-                            [clojure-lanterna "0.9.7"]
-                            [automat "0.2.0"]
                             [net.cgrand/seqexp "0.6.1"]
                             [it.frbracch/boot-marginalia "0.1.3-1"]])
 
 (task-options!
  pom {:project     project
       :version     version
-      :description "FIXME: write description"
-      :url         "http://example/FIXME"
-      :scm         {:url "https://github.com/yourname/pterodactyl"}
+      :description "Pterodactyl: a programmer's text editor for winged dinosaurs"
+      :url         "https://github.com/osfameron/pterodactyl"
+      :scm         {:url "https://github.com/osfameron/pterodactyl"}
       :license     {"Eclipse Public License"
                     "http://www.eclipse.org/legal/epl-v10.html"}}
  jar {:main        'pterodactyl.core
