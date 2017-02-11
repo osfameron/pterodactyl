@@ -102,10 +102,17 @@
   (the column number), all zero-based."
   {:pos 0, :row 0, :col 0})
 
-;; Helper routines to return pos/col/row of accumulator of focus of zipper
-(def at-pos (comp :pos at-acc))
-(def at-col (comp :col at-acc))
-(def at-row (comp :row at-acc))
+(def at-pos 
+  "Return :pos of the zipper"
+  (comp :pos at-acc))
+
+(def at-col
+  "Return :col of the zipper"
+  (comp :col at-acc))
+
+(def at-row
+  "Return :row of the zipper"
+  (comp :row at-acc))
 
 ;; Accumulator functions take the next character in our text stream and return
 ;; an updated accumulator map.
