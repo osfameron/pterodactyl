@@ -3,7 +3,11 @@
             [pterodactyl.dactyl :refer :all]))
 
 (deftest test-pair-reductions
-  (is (= [[1 0] [2 1] [3 3] [4 6] [5 10]]
+  (is (= [{:val 1, :acc 0}
+          {:val 2, :acc 1}
+          {:val 3, :acc 3}
+          {:val 4, :acc 6}
+          {:val 5, :acc 10}]
          (pair-reductions + 0 [1 2 3 4 5]))))
 
 (defn acc-test [m _] (pos++ m))
@@ -11,11 +15,11 @@
 
 (deftest test-make-zipper
   (is (= {:right
-          '((\H {:pos 0})
-            (\e {:pos 1})
-            (\l {:pos 2})
-            (\l {:pos 3})
-            (\o {:pos 4}))
+          '({:val \H, :acc  {:pos 0}}
+            {:val \e, :acc  {:pos 1}}
+            {:val \l, :acc  {:pos 2}}
+            {:val \l, :acc  {:pos 3}}
+            {:val \o, :acc  {:pos 4}})
            :left nil}
          zipper))
   (is (= acc-test (-> zipper meta :acc-fn)))) 
@@ -40,12 +44,12 @@
       (is (end-of-zipper? zipper :right))
       (is (not (end-of-zipper? zipper :left)))
       (is (= {:right
-              '((\o {:pos 4}))
+              '({:val \o, :acc {:pos 4}})
               :left
-              '((\l {:pos 3})
-                (\l {:pos 2})
-                (\e {:pos 1})
-                (\H {:pos 0}))}
+              '({:val \l, :acc {:pos 3}}
+                {:val \l, :acc {:pos 2}}
+                {:val \e, :acc {:pos 1}}
+                {:val \H, :acc {:pos 0}})}
            zipper)))))
       
 (deftest test-traverse
@@ -54,25 +58,25 @@
     (is (end-of-zipper? pos0 :left))
     (is (= zipper pos0))
     (is (= {:right
-              '((\e {:pos 1})
-                (\l {:pos 2})
-                (\l {:pos 3})
-                (\o {:pos 4}))
+              '({:val \e, :acc {:pos 1}}
+                {:val \l, :acc {:pos 2}}
+                {:val \l, :acc {:pos 3}}
+                {:val \o, :acc {:pos 4}})
             :left
-              '((\H {:pos 0}))}
+              '({:val \H, :acc {:pos 0}})}
            pos1))))
 
 (def NL \newline)
 (deftest test-acc-char
-  (is (= [[\a {:pos 0 :row 0 :col 0}]
-          [\b {:pos 1 :row 0 :col 1}]
-          [NL {:pos 2 :row 0 :col 2}]
-          [\a {:pos 3 :row 1 :col 0}]
-          [\b {:pos 4 :row 1 :col 1}]
-          [\c {:pos 5 :row 1 :col 2}]
-          [NL {:pos 6 :row 1 :col 3}]
-          [NL {:pos 7 :row 2 :col 0}]
-          [\a {:pos 8 :row 3 :col 0}]]
+  (is (= [{:val \a, :acc {:pos 0 :row 0 :col 0}}
+          {:val \b, :acc {:pos 1 :row 0 :col 1}}
+          {:val NL, :acc {:pos 2 :row 0 :col 2}}
+          {:val \a, :acc {:pos 3 :row 1 :col 0}}
+          {:val \b, :acc {:pos 4 :row 1 :col 1}}
+          {:val \c, :acc {:pos 5 :row 1 :col 2}}
+          {:val NL, :acc {:pos 6 :row 1 :col 3}}
+          {:val NL, :acc {:pos 7 :row 2 :col 0}}
+          {:val \a, :acc {:pos 8 :row 3 :col 0}}]
          (pair-reductions acc-char acc-init (seq "ab\nabc\n\na")))))
 
 ;; helpers to do is testing within a -> pipeline

@@ -26,14 +26,23 @@
 ;; As we then zip over this structure, we always know both what the character
 ;; at our cursor is, *and* what position we're at.
 
-(def pair "Combine two streams" (partial map list))
+(defn pair-keys 
+  "Combine streams"
+  [ks & lists]
+  (apply map #(zipmap ks %&) lists))
+  ; (apply map (comp (partial zipmap ks) list) lists)) 
+
+(defn merge-pair-keys
+  [ms ks & lists]
+  (map merge ms (apply pair-keys ks lists)))
 
 (defn pair-reductions 
   "Pair the supplied sequence with the reductions of the accumulator function
   and an initial value."
   [acc-fn init xs]
-  (pair xs
-        (reductions acc-fn init xs)))
+  (pair-keys [:val :acc]
+             xs
+             (reductions acc-fn init xs)))
 
 (defn make-zipper
   "Makes a paired zipper. This will be a map that looks like
@@ -48,15 +57,17 @@
                   :left nil)
       {:acc-fn acc-fn})))
 
-(defn at-value
-  "Return the value of the current position of the zipper"
-  [{[[value _]] :right}]
-  value)
+(def at
+  "The node at current position of the zipper"
+  (comp first :right))
 
-(defn at-acc
+(def at-value
   "Return the value of the current position of the zipper"
-  [{[[_ acc]] :right}]
-  acc)
+  (comp :val at))
+
+(def at-acc
+  "Return the value of the current position of the zipper"
+  (comp :acc at))
 
 (def reversed {:left :right
                :right :left}) 
@@ -230,7 +241,7 @@
   "Returns a dactyl pointing at the first element of its
   parent phalange."
   [phalange]
-  (let [[piece init] (first (:right phalange)) 
+  (let [{piece :val, init :acc} (at phalange) 
         init' (assoc init :ppos 0)
         xs (piece->seq piece)
         acc-fn-char (:acc-fn-char phalange)]
@@ -411,7 +422,7 @@
       go-start-of-buffer
       :up
       (#(apply str
-               (map (comp string first)
+               (map (comp string :val)
                     (butlast (:right %)))))))
 
 ;; ## Combing
@@ -425,9 +436,9 @@
   that has changed the accumulated positions to the right."
   [phalange]
   (let [acc-fn (:acc-fn (meta phalange))
-        [[_ acc] :as rights] (:right phalange)]
+        [{acc :acc} :as rights] (:right phalange)]
     (->> rights
-         (map first)
+         (map :val)
          (pair-reductions acc-fn acc)
          (assoc phalange :right))))
 
@@ -442,13 +453,13 @@
 
 (defn split-phalange [phalange split-acc]
   (let [left (:left phalange)
-        [[[s from to] orig-acc] & right] (:right phalange)
+        [{[s from to] :val, orig-acc :acc} & right] (:right phalange)
         split-offset (:ppos split-acc)
         length (- to from)]
     (if (< 0 split-offset length)
       (let [pivot (+ from split-offset)
-            prev [[s from pivot] orig-acc] 
-            next [[s pivot to] split-acc]] 
+            prev {:val [s from pivot], :acc orig-acc} 
+            next {:val [s pivot to], :acc split-acc}] 
         (-> phalange
           (assoc :left  (conj left prev)
                  :right (conj right next))
@@ -492,7 +503,7 @@
   "Insert the seq of pieces at current point."
   [dactyl pieces]
   (let [acc (at-acc dactyl)
-        rights (pair pieces (repeat acc))]
+        rights (pair-keys [:val :acc] pieces (repeat acc))]
         ; we only actually need acc on the first piece, as the remainder
         ; will be comb'd out.
     (-> dactyl
@@ -512,8 +523,8 @@
 (defn copy-pieces 
   "Copies the pieces between the two phalanges"
   [[pl pr]]
-  (let [target (first (:right pr))]
-    (map first 
+  (let [target (at pr)]
+    (map :val 
          (take-while (complement (partial identical? target))
                      (:right pl)))))
 
@@ -521,10 +532,9 @@
   "Deletes the span between the two phalanges"
   [[pl pr]]
   (let [acc (-> (at-acc pl))
-                ;(assoc :ppos (:ppos (at-acc pr))))
-        [[piece _] & rights] (:right pr)]
+        [{piece :val} & rights] (:right pr)]
     (-> pl
-        (assoc :right (cons [piece acc] rights))
+        (assoc :right (cons {:val piece, :acc acc} rights))
         comb)))
 
 (defn delete
@@ -549,8 +559,25 @@
   [[value info]]
   (if (= :end value)
       [[value (get info 0 {})]]
-      (pair (seq (string value))
-            (map #(get info % {}) (range)))))
+      (pair-keys [:val :meta]
+                 (seq (string value))
+                 (map #(get info % {}) (range)))))
 
 (my-piece->seq my-piece)
 (my-piece->seq [:end {0 {:marks #{:end}}}])
+
+;; ### More pairing functions
+;;
+;; instead of complecting my data structure of [value acc]
+;; into [[value data] acc], I think it makes more sense to have
+;; {:value :data :acc}.  At which point I need some new functions
+;; to map these than just a tuple pairing.
+
+(pair-keys [:a :b :c] [1 2 3] [4 5 6] [7 8 9])
+(pair-keys [:a :b :c :d] [1 2 3] [4 5 6] [7 8 9])
+(merge-pair-keys [{:a "was" :foo 1},{:a "was" :foo 2}, {:a "was" :foo 3}]
+                 [:a :b :c :d]
+                 [1 2 3]
+                 [4 5 6]
+                 [7 8 9])
+
