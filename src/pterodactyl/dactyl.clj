@@ -26,13 +26,14 @@
 ;; As we then zip over this structure, we always know both what the character
 ;; at our cursor is, *and* what position we're at.
 
+(def pair "Combine two streams" (partial map list))
+
 (defn pair-reductions 
   "Pair the supplied sequence with the reductions of the accumulator function
   and an initial value."
   [acc-fn init xs]
-  (map list
-       xs
-       (reductions acc-fn init xs)))
+  (pair xs
+        (reductions acc-fn init xs)))
 
 (defn make-zipper
   "Makes a paired zipper. This will be a map that looks like
@@ -97,9 +98,13 @@
 
 ;; (Plugins may add additional keys in future.)
 (def acc-init
-  "Our accumulator will (at simplest) have the `:pos` (offset of characters
-  from the beginning of the buffer), `:row` (the line number) and `:col`
-  (the column number), all zero-based."
+  "Our accumulator will (at simplest) have 
+
+  - `:pos` (character offset of from the start of the buffer),
+  - `:row` (the line number)
+  - `:col` (the column number)
+  
+  all zero-based."
   {:pos 0, :row 0, :col 0})
 
 ;; Helper routines to return pos/col/row of accumulator of focus of zipper
@@ -114,6 +119,7 @@
 
 ;; First, we define some simple combinators to update the map.
 (defn pos++ [m] (update m :pos inc))
+(defn ppos++ [m] (update m :ppos inc))
 (defn row++ [m] (update m :row inc))
 (defn col++ [m] (update m :col inc))
 (defn col0 [m] (assoc m :col 0))
@@ -186,6 +192,12 @@
   [acc-fn-char]
   (fn [m piece] (reduce acc-fn-char m (piece->seq piece))))
 
+(defn munge-acc-char
+  "Take the acc-char accumulator and additionally accumulate the :ppos
+  position within the piece"
+  [acc-fn-char]
+  (comp ppos++ acc-fn-char))
+
 ;; ## The Phalange
 ;;
 ;; The zipper over pieces is called the "Phalange".  (This is the word for the
@@ -206,7 +218,7 @@
      (make-zipper acc-fn
                   acc-init
                   pieces
-                  {:acc-fn-char acc-fn-char}))))
+                  {:acc-fn-char (munge-acc-char acc-fn-char)}))))
 
 ;; ## The Dactyl
 ;;
@@ -219,12 +231,13 @@
   parent phalange."
   [phalange]
   (let [[piece init] (first (:right phalange)) 
+        init' (assoc init :ppos 0)
         xs (piece->seq piece)
         acc-fn-char (:acc-fn-char phalange)]
       (make-zipper acc-fn-char
-                  init
-                  xs
-                  {:up phalange}))) 
+                   init'
+                   xs
+                   {:up phalange}))) 
 
 ;; TODO rename strings->dactyl, and take acc-fn-char
 (defn make-dactyl
@@ -339,15 +352,15 @@
       (neg? delta) (-> dactyl (stream :left) (nth (- delta))))))
 
 (defn go-start-of-line
-  "Go to the start of the line (e.g. the first position to the `:left`
-  where the `:col` is 0)"
+  "Go to the start of the line (e.g. search to the `:left`
+  for `:col = 0`)"
   [dactyl]
   (-> dactyl
       (traverse-find :left (comp zero? at-col))))
 
 (defn go-end-of-line
-  "Go to the end of the line (e.g. the first position to the `:right`
-  which is a newline character)"
+  "Go to the end of the line (e.g. search to the `:right`
+  for the next newline character)"
   [dactyl]
   (-> dactyl
       (find-char :right \newline)))
@@ -376,7 +389,7 @@
         (traverse-find :left to-col)))) 
 
 (defn go-down
-  "Go up one row, attempting to stay in the same column"
+  "Go down one row, attempting to stay in the same column"
   [dactyl]
   (let [col (at-col dactyl)]
     (-> dactyl
@@ -388,10 +401,10 @@
 ;;
 ;; (for debugging)
 
-(defn all-pos [dactyl]
+(defn all-acc [dactyl]
   (-> dactyl
       go-start-of-buffer
-      (#(map at-pos (stream % :right)))))
+      (#(map at-acc (stream % :right)))))
 
 (defn all-text [dactyl]
   (-> dactyl
@@ -400,6 +413,23 @@
       (#(apply str
                (map (comp string first)
                     (butlast (:right %)))))))
+
+;; ## Combing
+
+;; NB: as the result is a lazy sequence, in future this may cause an agent to
+;; walk to the very end of the buffer to actually comb this out, then update
+;; an atom with the combed accumulator.
+(defn comb 
+  "Comb a phalange - i.e. recalculate all the accumulators to its
+  right.  This is required after any change (insertion, deletion)
+  that has changed the accumulated positions to the right."
+  [phalange]
+  (let [acc-fn (:acc-fn (meta phalange))
+        [[_ acc] :as rights] (:right phalange)]
+    (->> rights
+         (map first)
+         (pair-reductions acc-fn acc)
+         (assoc phalange :right))))
 
 ;; ## Splitting
 ;;
@@ -413,15 +443,16 @@
 (defn split-phalange [phalange split-acc]
   (let [left (:left phalange)
         [[[s from to] orig-acc] & right] (:right phalange)
-        split-offset (- (:pos split-acc) (:pos orig-acc))
+        split-offset (:ppos split-acc)
         length (- to from)]
     (if (< 0 split-offset length)
       (let [pivot (+ from split-offset)
             prev [[s from pivot] orig-acc] 
             next [[s pivot to] split-acc]] 
-        (assoc phalange
-               :left  (conj left prev)
-               :right (conj right next)))
+        (-> phalange
+          (assoc :left  (conj left prev)
+                 :right (conj right next))
+          comb))
       phalange)))
   
 (defn dactyl->split-phalange [dactyl]
@@ -430,14 +461,17 @@
         :up
         (split-phalange acc))))
 
+;; Delegates to split-phalange and simply traverses back down
+;; into the new dactyl at head position.
 (defn split-dactyl
   "split-dactyl splits the dactyl, ensuring that it's now at the
   beginning of its parent phalange."
   [dactyl]
   (if (end-of-zipper? dactyl :left)
     dactyl
-    (assoc dactyl :left nil
-                  :up (-> dactyl dactyl->split-phalange))))
+    (-> dactyl
+        dactyl->split-phalange
+        phalange->dactyl)))
 
 ;; NB: we move *back* to d2, rather than using original dactyl,
 ;; to make sure both pointers are aware of each other's split.
@@ -452,26 +486,13 @@
          (sort-by at-pos)
          (map :up))))
 
-;; ## Combing
-
-(defn comb 
-  "Comb a phalange - i.e. recalculate all the accumulators to its
-  right."
-  [phalange]
-  (let [acc-fn (:acc-fn (meta phalange))
-        [[_ acc] :as rights] (:right phalange)]
-    (->> rights
-         (map first)
-         (pair-reductions acc-fn acc)
-         (assoc phalange :right))))
-
 ;; ## Modifying the buffer
 
 (defn insert-pieces 
   "Insert the seq of pieces at current point."
   [dactyl pieces]
   (let [acc (at-acc dactyl)
-        rights (zipmap pieces (repeat acc))]
+        rights (pair pieces (repeat acc))]
         ; we only actually need acc on the first piece, as the remainder
         ; will be comb'd out.
     (-> dactyl
@@ -499,7 +520,8 @@
 (defn delete-between
   "Deletes the span between the two phalanges"
   [[pl pr]]
-  (let [acc (at-acc pl)
+  (let [acc (-> (at-acc pl))
+                ;(assoc :ppos (:ppos (at-acc pr))))
         [[piece _] & rights] (:right pr)]
     (-> pl
         (assoc :right (cons [piece acc] rights))
@@ -512,3 +534,23 @@
       (split-move movement)
       delete-between
       phalange->dactyl))
+
+;; ## Sketch: new structure for metadata
+;;
+;; the :ppos work is in preparation for this.
+
+(def my-piece [["hello" 0 5], {2 {:marks #{:a}}, 3 {:marks #{:b}}}]) 
+(identity my-piece)
+
+(defn my-piece->seq
+  "Get the sequence of characters in a piece.
+  If the piece is `:end` (a special token, representing the end of the buffer) will
+  return a sequence of `[:end]`"
+  [[value info]]
+  (if (= :end value)
+      [[value (get info 0 {})]]
+      (pair (seq (string value))
+            (map #(get info % {}) (range)))))
+
+(my-piece->seq my-piece)
+(my-piece->seq [:end {0 {:marks #{:end}}}])

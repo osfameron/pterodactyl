@@ -62,15 +62,16 @@
               '((\H {:pos 0}))}
            pos1))))
 
+(def NL \newline)
 (deftest test-acc-char
   (is (= [[\a {:pos 0 :row 0 :col 0}]
           [\b {:pos 1 :row 0 :col 1}]
-          [\newline {:pos 2 :row 0 :col 2}]
+          [NL {:pos 2 :row 0 :col 2}]
           [\a {:pos 3 :row 1 :col 0}]
           [\b {:pos 4 :row 1 :col 1}]
           [\c {:pos 5 :row 1 :col 2}]
-          [\newline {:pos 6 :row 1 :col 3}]
-          [\newline {:pos 7 :row 2 :col 0}]
+          [NL {:pos 6 :row 1 :col 3}]
+          [NL {:pos 7 :row 2 :col 0}]
           [\a {:pos 8 :row 3 :col 0}]]
          (pair-reductions acc-char acc-init (seq "ab\nabc\n\na")))))
 
@@ -203,5 +204,5 @@
 (comment
   (-> d2
      go-end-of-line
-     (insert "\n\n")
+     ;(insert "\n\n")
      (#(doseq [p (stream % :right)] (println (at-acc p))))))
