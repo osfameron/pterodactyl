@@ -2898,13 +2898,13 @@ of the actual accumulator functions we'll use.)</p>
 
 <p>As we then zip over this structure, we always know both what the character
 at our cursor is, <em>and</em> what position we're at.</p>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Pair the supplied sequence with the reductions of the accumulator function
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Combine two streams</p>
+</td><td class="codes"><pre class="brush: clojure">(def pair  (partial map list))</pre></td></tr><tr><td class="docs"><p>Pair the supplied sequence with the reductions of the accumulator function
   and an initial value.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn pair-reductions 
   [acc-fn init xs]
-  (map list
-       xs
-       (reductions acc-fn init xs)))</pre></td></tr><tr><td class="docs"><p>Makes a paired zipper. This will be a map that looks like
+  (pair xs
+        (reductions acc-fn init xs)))</pre></td></tr><tr><td class="docs"><p>Makes a paired zipper. This will be a map that looks like
   <code>{:left (...) :right (...) ...}</code></p>
 
 <p>  Accepts a <code>base</code> argument which may contain additional keys.
@@ -2954,9 +2954,15 @@ e.g. 1 item, which will be either)
   (let [[x xs] ((juxt last butlast) (:right z))]
     (assoc z :right (list x)
              :left (reverse xs))))</pre></td></tr><tr><td class="docs"><h2>The Accumulator</h2>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Our accumulator will (at simplest) have the <code>:pos</code> (offset of characters
-  from the beginning of the buffer), <code>:row</code> (the line number) and <code>:col</code>
-  (the column number), all zero-based.</p>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Our accumulator will (at simplest) have </p>
+
+<ul>
+<li><code>:pos</code> (character offset of from the start of the buffer),</li>
+<li><code>:row</code> (the line number)</li>
+<li><p><code>:col</code> (the column number)</p>
+
+<p>all zero-based.</p></li>
+</ul>
 
 <p>(Plugins may add additional keys in future.)</p>
 </td><td class="codes"><pre class="brush: clojure">(def acc-init
@@ -2968,6 +2974,7 @@ an updated accumulator map.</p>
 </td><td class="codes"></td></tr><tr><td class="docs"><h3>Combinators to update position within buffer</h3>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>First, we define some simple combinators to update the map.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn pos++ [m] (update m :pos inc))
+(defn ppos++ [m] (update m :ppos inc))
 (defn row++ [m] (update m :row inc))
 (defn col++ [m] (update m :col inc))
 (defn col0 [m] (assoc m :col 0))
@@ -3025,7 +3032,11 @@ characters in the piece.</p>
   by reducing the char accumulator over the sequence of chars.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn make-acc-piece
   [acc-fn-char]
-  (fn [m piece] (reduce acc-fn-char m (piece-&gt;seq piece))))</pre></td></tr><tr><td class="docs"><h2>The Phalange</h2>
+  (fn [m piece] (reduce acc-fn-char m (piece-&gt;seq piece))))</pre></td></tr><tr><td class="docs"><p>Take the acc-char accumulator and additionally accumulate the :ppos
+  position within the piece</p>
+</td><td class="codes"><pre class="brush: clojure">(defn munge-acc-char
+  [acc-fn-char]
+  (comp ppos++ acc-fn-char))</pre></td></tr><tr><td class="docs"><h2>The Phalange</h2>
 
 <p>The zipper over pieces is called the "Phalange".  (This is the word for the
 bones of the finger - a finger is a type of pointer, as is a zipper, and the
@@ -3043,7 +3054,7 @@ zipper over the pieces is the underlying "bones" of the data-structure.)</p>
      (make-zipper acc-fn
                   acc-init
                   pieces
-                  {:acc-fn-char acc-fn-char}))))</pre></td></tr><tr><td class="docs"><h2>The Dactyl</h2>
+                  {:acc-fn-char (munge-acc-char acc-fn-char)}))))</pre></td></tr><tr><td class="docs"><h2>The Dactyl</h2>
 
 <p>The zipper over characters within a piece is called the "Dactyl".  (This
 means finger, so it's the specific pointing abstraction that fleshes out
@@ -3053,12 +3064,13 @@ the bones of the Phalange.)</p>
 </td><td class="codes"><pre class="brush: clojure">(defn phalange-&gt;dactyl
   [phalange]
   (let [[piece init] (first (:right phalange)) 
+        init' (assoc init :ppos 0)
         xs (piece-&gt;seq piece)
         acc-fn-char (:acc-fn-char phalange)]
       (make-zipper acc-fn-char
-                  init
-                  xs
-                  {:up phalange}))) </pre></td></tr><tr><td class="docs"><p>TODO rename strings->dactyl, and take acc-fn-char</p>
+                   init'
+                   xs
+                   {:up phalange}))) </pre></td></tr><tr><td class="docs"><p>TODO rename strings->dactyl, and take acc-fn-char</p>
 </td><td class="codes"><pre class="brush: clojure">(defn make-dactyl
   [strings]
   (-&gt; strings
@@ -3148,13 +3160,13 @@ phalange instead.</p>
     (cond
       (zero? delta) dactyl
       (pos? delta) (-&gt; dactyl (stream :right) (nth delta))
-      (neg? delta) (-&gt; dactyl (stream :left) (nth (- delta))))))</pre></td></tr><tr><td class="docs"><p>Go to the start of the line (e.g. the first position to the <code>:left</code>
-  where the <code>:col</code> is 0)</p>
+      (neg? delta) (-&gt; dactyl (stream :left) (nth (- delta))))))</pre></td></tr><tr><td class="docs"><p>Go to the start of the line (e.g. search to the <code>:left</code>
+  for <code>:col = 0</code>)</p>
 </td><td class="codes"><pre class="brush: clojure">(defn go-start-of-line
   [dactyl]
   (-&gt; dactyl
-      (traverse-find :left (comp zero? at-col))))</pre></td></tr><tr><td class="docs"><p>Go to the end of the line (e.g. the first position to the <code>:right</code>
-  which is a newline character)</p>
+      (traverse-find :left (comp zero? at-col))))</pre></td></tr><tr><td class="docs"><p>Go to the end of the line (e.g. search to the <code>:right</code>
+  for the next newline character)</p>
 </td><td class="codes"><pre class="brush: clojure">(defn go-end-of-line
   [dactyl]
   (-&gt; dactyl
@@ -3178,7 +3190,7 @@ phalange instead.</p>
     (-&gt; dactyl
         go-start-of-line
         (go :left)
-        (traverse-find :left to-col)))) </pre></td></tr><tr><td class="docs"><p>Go up one row, attempting to stay in the same column</p>
+        (traverse-find :left to-col)))) </pre></td></tr><tr><td class="docs"><p>Go down one row, attempting to stay in the same column</p>
 </td><td class="codes"><pre class="brush: clojure">(defn go-down
   [dactyl]
   (let [col (at-col dactyl)]
@@ -3189,17 +3201,32 @@ phalange instead.</p>
 
 <p>(for debugging)</p>
 </td><td class="codes"></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(defn all-pos [dactyl]
+</td><td class="codes"><pre class="brush: clojure">(defn all-acc [dactyl]
   (-&gt; dactyl
       go-start-of-buffer
-      (#(map at-pos (stream % :right)))))</pre></td></tr><tr><td class="docs">
+      (#(map at-acc (stream % :right)))))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn all-text [dactyl]
   (-&gt; dactyl
       go-start-of-buffer
       :up
       (#(apply str
                (map (comp string first)
-                    (butlast (:right %)))))))</pre></td></tr><tr><td class="docs"><h2>Splitting</h2>
+                    (butlast (:right %)))))))</pre></td></tr><tr><td class="docs"><h2>Combing</h2>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Comb a phalange - i.e. recalculate all the accumulators to its
+  right.  This is required after any change (insertion, deletion)
+  that has changed the accumulated positions to the right.</p>
+
+<p>NB: as the result is a lazy sequence, in future this may cause an agent to
+walk to the very end of the buffer to actually comb this out, then update
+an atom with the combed accumulator.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn comb 
+  [phalange]
+  (let [acc-fn (:acc-fn (meta phalange))
+        [[_ acc] :as rights] (:right phalange)]
+    (-&gt;&gt; rights
+         (map first)
+         (pair-reductions acc-fn acc)
+         (assoc phalange :right))))</pre></td></tr><tr><td class="docs"><h2>Splitting</h2>
 
 <p>If we're operating between two points, it's most convenient if
 we can work at the level of whole pieces in the phalange.  So rather than
@@ -3211,15 +3238,16 @@ dactyl now at the beginning of a piece.)</p>
 </td><td class="codes"><pre class="brush: clojure">(defn split-phalange [phalange split-acc]
   (let [left (:left phalange)
         [[[s from to] orig-acc] &amp; right] (:right phalange)
-        split-offset (- (:pos split-acc) (:pos orig-acc))
+        split-offset (:ppos split-acc)
         length (- to from)]
     (if (&lt; 0 split-offset length)
       (let [pivot (+ from split-offset)
             prev [[s from pivot] orig-acc] 
             next [[s pivot to] split-acc]] 
-        (assoc phalange
-               :left  (conj left prev)
-               :right (conj right next)))
+        (-&gt; phalange
+          (assoc :left  (conj left prev)
+                 :right (conj right next))
+          comb))
       phalange)))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn dactyl-&gt;split-phalange [dactyl]
   (let [acc (at-acc dactyl)]
@@ -3227,12 +3255,16 @@ dactyl now at the beginning of a piece.)</p>
         :up
         (split-phalange acc))))</pre></td></tr><tr><td class="docs"><p>split-dactyl splits the dactyl, ensuring that it's now at the
   beginning of its parent phalange.</p>
+
+<p>Delegates to split-phalange and simply traverses back down
+into the new dactyl at head position.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn split-dactyl
   [dactyl]
   (if (end-of-zipper? dactyl :left)
     dactyl
-    (assoc dactyl :left nil
-                  :up (-&gt; dactyl dactyl-&gt;split-phalange))))</pre></td></tr><tr><td class="docs"><p>Applies the movement function, splitting the two dactyls at origin
+    (-&gt; dactyl
+        dactyl-&gt;split-phalange
+        phalange-&gt;dactyl)))</pre></td></tr><tr><td class="docs"><p>Applies the movement function, splitting the two dactyls at origin
   and end point and returning a vector of their <em>phalanges</em> sorted in
   position order.</p>
 
@@ -3244,22 +3276,12 @@ to make sure both pointers are aware of each other's split.</p>
         d2 (-&gt; d1 (go-to (at-pos dactyl)))]
     (-&gt;&gt; [d1 d2]
          (sort-by at-pos)
-         (map :up))))</pre></td></tr><tr><td class="docs"><h2>Combing</h2>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Comb a phalange - i.e. recalculate all the accumulators to its
-  right.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn comb 
-  [phalange]
-  (let [acc-fn (:acc-fn (meta phalange))
-        [[_ acc] :as rights] (:right phalange)]
-    (-&gt;&gt; rights
-         (map first)
-         (pair-reductions acc-fn acc)
-         (assoc phalange :right))))</pre></td></tr><tr><td class="docs"><h2>Modifying the buffer</h2>
+         (map :up))))</pre></td></tr><tr><td class="docs"><h2>Modifying the buffer</h2>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Insert the seq of pieces at current point.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn insert-pieces 
   [dactyl pieces]
   (let [acc (at-acc dactyl)
-        rights (zipmap pieces (repeat acc))]
+        rights (pair pieces (repeat acc))]
         ; we only actually need acc on the first piece, as the remainder
         ; will be comb'd out.
     (-&gt; dactyl
@@ -3282,7 +3304,8 @@ to make sure both pointers are aware of each other's split.</p>
                      (:right pl)))))</pre></td></tr><tr><td class="docs"><p>Deletes the span between the two phalanges</p>
 </td><td class="codes"><pre class="brush: clojure">(defn delete-between
   [[pl pr]]
-  (let [acc (at-acc pl)
+  (let [acc (-&gt; (at-acc pl))
+                ;(assoc :ppos (:ppos (at-acc pr))))
         [[piece _] &amp; rights] (:right pr)]
     (-&gt; pl
         (assoc :right (cons [piece acc] rights))
@@ -3292,7 +3315,22 @@ to make sure both pointers are aware of each other's split.</p>
   (-&gt; dactyl
       (split-move movement)
       delete-between
-      phalange-&gt;dactyl))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr></table><div class="footer">Generated by <a href="https://github.com/gdeer81/marginalia">Marginalia</a>.&nbsp;&nbsp;Syntax highlighting provided by Alex Gorbatchev's <a href="http://alexgorbatchev.com/SyntaxHighlighter/">SyntaxHighlighter</a><div id="floating-toc"><ul><li class="floating-toc-li" id="floating-toc_pterodactyl.core">pterodactyl.core</li><li class="floating-toc-li" id="floating-toc_pterodactyl.dactyl">pterodactyl.dactyl</li></ul></div></div><script type="text/javascript">SyntaxHighlighter.defaults['gutter'] = false;
+      phalange-&gt;dactyl))</pre></td></tr><tr><td class="docs"><h2>Sketch: new structure for metadata</h2>
+
+<p>the :ppos work is in preparation for this.</p>
+</td><td class="codes"></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(def my-piece [[&quot;hello&quot; 0 5], {2 {:marks #{:a}}, 3 {:marks #{:b}}}]) 
+(identity my-piece)</pre></td></tr><tr><td class="docs"><p>Get the sequence of characters in a piece.
+  If the piece is <code>:end</code> (a special token, representing the end of the buffer) will
+  return a sequence of <code>[:end]</code></p>
+</td><td class="codes"><pre class="brush: clojure">(defn my-piece-&gt;seq
+  [[value info]]
+  (if (= :end value)
+      [[value (get info 0 {})]]
+      (pair (seq (string value))
+            (map #(get info % {}) (range)))))</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(my-piece-&gt;seq my-piece)
+(my-piece-&gt;seq [:end {0 {:marks #{:end}}}])</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr></table><div class="footer">Generated by <a href="https://github.com/gdeer81/marginalia">Marginalia</a>.&nbsp;&nbsp;Syntax highlighting provided by Alex Gorbatchev's <a href="http://alexgorbatchev.com/SyntaxHighlighter/">SyntaxHighlighter</a><div id="floating-toc"><ul><li class="floating-toc-li" id="floating-toc_pterodactyl.core">pterodactyl.core</li><li class="floating-toc-li" id="floating-toc_pterodactyl.dactyl">pterodactyl.dactyl</li></ul></div></div><script type="text/javascript">SyntaxHighlighter.defaults['gutter'] = false;
 SyntaxHighlighter.all();
 
 // hackity hack
