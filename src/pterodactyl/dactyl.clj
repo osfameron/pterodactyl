@@ -18,16 +18,16 @@
 ;; call: `(pair-reductions inc 0 (seq "abc")`
 ;; to get a sequence of:
 ;;
-;;   `[[\a 0], [\b 1], [\c 2]]`
+;;   `[{:val \a, :acc 0}, {:val \b, :acc 1}, {:val \c, :acc 2}]`
 ;;
-;; (e.g. pairs of `[thing acc]`.  See "The Accumulator" below for details
+;; (e.g. pairs of thing & acc.  See "The Accumulator" below for details
 ;; of the actual accumulator functions we'll use.)
 ;;
 ;; As we then zip over this structure, we always know both what the character
 ;; at our cursor is, *and* what position we're at.
 
 (defn pair-keys 
-  "Combine streams"
+  "Combine streams into maps with the supplied keys."
   [ks & lists]
   (apply map #(zipmap ks %&) lists))
   ; (apply map (comp (partial zipmap ks) list) lists)) 
@@ -250,12 +250,14 @@
                    xs
                    {:up phalange}))) 
 
-;; TODO rename strings->dactyl, and take acc-fn-char
-(defn make-dactyl
-  [strings]
-  (-> strings
-      strings->phalange
-      phalange->dactyl))
+(defn strings->dactyl
+  ([strings]
+   (strings->dactyl strings acc-char))
+
+  ([strings acc-fn-char]
+   (-> strings
+       (strings->phalange acc-fn-char)
+       phalange->dactyl)))
 
 ;; NB: not sure about naming of this function, or its parameters.
 ;; (e.g. should it be `(go-side (rev dir))`?)
@@ -534,7 +536,7 @@
   (let [acc (-> (at-acc pl))
         [{piece :val} & rights] (:right pr)]
     (-> pl
-        (assoc :right (cons {:val piece, :acc acc} rights))
+          (assoc :right (cons {:val piece, :acc acc} rights))
         comb)))
 
 (defn delete

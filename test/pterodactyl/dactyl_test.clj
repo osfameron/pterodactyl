@@ -97,7 +97,7 @@
   (is (pred? x))
   x)
 
-(def d2 (make-dactyl ["The cat\n" "Sat on\n" "The mat\n"]))
+(def d2 (strings->dactyl ["The cat\n" "Sat on\n" "The mat\n"]))
 
 (deftest end-and-start-of-line
   (-> d2
