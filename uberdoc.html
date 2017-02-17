@@ -2866,7 +2866,7 @@ net.brehaut.ClojureTools = (function (SH) {
   };
 })(SyntaxHighlighter);
 </script><title>pterodactyl -- Marginalia</title></head><body><table><tr><td class="docs"><div class="header"><h1 class="project-name">pterodactyl</h1><h2 class="project-version">0.1.0-SNAPSHOT</h2><br /><p>Pterodactyl: a programmer's text editor for winged dinosaurs</p>
-</div><div class="dependencies"><h3>dependencies</h3><table><tr><td class="dep-name">org.clojure/clojure</td><td class="dotted"><hr /></td><td class="dep-version">1.8.0</td></tr><tr><td class="dep-name">net.cgrand/seqexp</td><td class="dotted"><hr /></td><td class="dep-version">0.6.1</td></tr></table></div></td><td class="codes" style="text-align: center; vertical-align: middle;color: #666;padding-right:20px"><br /><br /><br />(this space intentionally left almost blank)</td></tr><tr><td class="docs"><div class="toc"><a name="toc"><h3>namespaces</h3></a><ul><li><a href="#pterodactyl.core">pterodactyl.core</a></li><li><a href="#pterodactyl.dactyl">pterodactyl.dactyl</a></li></ul></div></td><td class="codes">&nbsp;</td></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#pterodactyl.core" name="pterodactyl.core"><h1 class="project-name">pterodactyl.core</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs">
+</div><div class="dependencies"><h3>dependencies</h3><table><tr><td class="dep-name">org.clojure/clojure</td><td class="dotted"><hr /></td><td class="dep-version">1.8.0</td></tr><tr><td class="dep-name">net.cgrand/seqexp</td><td class="dotted"><hr /></td><td class="dep-version">0.6.1</td></tr><tr><td class="dep-name">clojure.java-time</td><td class="dotted"><hr /></td><td class="dep-version">0.2.2</td></tr><tr><td class="dep-name">cheshire</td><td class="dotted"><hr /></td><td class="dep-version">5.7.0</td></tr></table></div></td><td class="codes" style="text-align: center; vertical-align: middle;color: #666;padding-right:20px"><br /><br /><br />(this space intentionally left almost blank)</td></tr><tr><td class="docs"><div class="toc"><a name="toc"><h3>namespaces</h3></a><ul><li><a href="#pterodactyl.core">pterodactyl.core</a></li><li><a href="#pterodactyl.dactyl">pterodactyl.dactyl</a></li><li><a href="#pterodactyl.log">pterodactyl.log</a></li></ul></div></td><td class="codes">&nbsp;</td></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#pterodactyl.core" name="pterodactyl.core"><h1 class="project-name">pterodactyl.core</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(ns pterodactyl.core
   (:gen-class))</pre></td></tr><tr><td class="docs"><p>I don't do a whole lot ... yet.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn -main
@@ -2891,20 +2891,26 @@ we cared about was the integer position within the buffer, we could
 call: <code>(pair-reductions inc 0 (seq "abc")</code>
 to get a sequence of:</p>
 
-<p>  <code>[[\a 0], [\b 1], [\c 2]]</code></p>
+<p>  <code>[{:val \a, :acc 0}, {:val \b, :acc 1}, {:val \c, :acc 2}]</code></p>
 
-<p>(e.g. pairs of <code>[thing acc]</code>.  See "The Accumulator" below for details
+<p>(e.g. pairs of thing &amp; acc.  See "The Accumulator" below for details
 of the actual accumulator functions we'll use.)</p>
 
 <p>As we then zip over this structure, we always know both what the character
 at our cursor is, <em>and</em> what position we're at.</p>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Combine two streams</p>
-</td><td class="codes"><pre class="brush: clojure">(def pair  (partial map list))</pre></td></tr><tr><td class="docs"><p>Pair the supplied sequence with the reductions of the accumulator function
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Combine streams into maps with the supplied keys.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn pair-keys 
+  [ks &amp; lists]
+  (apply map #(zipmap ks %&amp;) lists))</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defn merge-pair-keys
+  [ms ks &amp; lists]
+  (map merge ms (apply pair-keys ks lists)))</pre></td></tr><tr><td class="docs"><p>Pair the supplied sequence with the reductions of the accumulator function
   and an initial value.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn pair-reductions 
   [acc-fn init xs]
-  (pair xs
-        (reductions acc-fn init xs)))</pre></td></tr><tr><td class="docs"><p>Makes a paired zipper. This will be a map that looks like
+  (pair-keys [:val :acc]
+             xs
+             (reductions acc-fn init xs)))</pre></td></tr><tr><td class="docs"><p>Makes a paired zipper. This will be a map that looks like
   <code>{:left (...) :right (...) ...}</code></p>
 
 <p>  Accepts a <code>base</code> argument which may contain additional keys.
@@ -2915,13 +2921,13 @@ at our cursor is, <em>and</em> what position we're at.</p>
     (with-meta 
       (assoc base :right rights
                   :left nil)
-      {:acc-fn acc-fn})))</pre></td></tr><tr><td class="docs"><p>Return the value of the current position of the zipper</p>
-</td><td class="codes"><pre class="brush: clojure">(defn at-value
-  [{[[value _]] :right}]
-  value)</pre></td></tr><tr><td class="docs"><p>Return the value of the current position of the zipper</p>
-</td><td class="codes"><pre class="brush: clojure">(defn at-acc
-  [{[[_ acc]] :right}]
-  acc)</pre></td></tr><tr><td class="docs">
+      {:acc-fn acc-fn})))</pre></td></tr><tr><td class="docs"><p>The node at current position of the zipper</p>
+</td><td class="codes"><pre class="brush: clojure">(def at
+  (comp first :right))</pre></td></tr><tr><td class="docs"><p>Return the value of the current position of the zipper</p>
+</td><td class="codes"><pre class="brush: clojure">(def at-value
+  (comp :val at))</pre></td></tr><tr><td class="docs"><p>Return the value of the current position of the zipper</p>
+</td><td class="codes"><pre class="brush: clojure">(def at-acc
+  (comp :acc at))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(def reversed {:left :right
                :right :left}) </pre></td></tr><tr><td class="docs"><p>Boolean value if the zipper is at the end (by supplied <code>dir</code>)
   of its sequence.</p>
@@ -3063,19 +3069,21 @@ the bones of the Phalange.)</p>
   parent phalange.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn phalange-&gt;dactyl
   [phalange]
-  (let [[piece init] (first (:right phalange)) 
+  (let [{piece :val, init :acc} (at phalange) 
         init' (assoc init :ppos 0)
         xs (piece-&gt;seq piece)
         acc-fn-char (:acc-fn-char phalange)]
       (make-zipper acc-fn-char
                    init'
                    xs
-                   {:up phalange}))) </pre></td></tr><tr><td class="docs"><p>TODO rename strings->dactyl, and take acc-fn-char</p>
-</td><td class="codes"><pre class="brush: clojure">(defn make-dactyl
-  [strings]
-  (-&gt; strings
-      strings-&gt;phalange
-      phalange-&gt;dactyl))</pre></td></tr><tr><td class="docs"><p>If moving :right into a dactyl, we want to start at the beginning,
+                   {:up phalange}))) </pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defn strings-&gt;dactyl
+  ([strings]
+   (strings-&gt;dactyl strings acc-char))
+  ([strings acc-fn-char]
+   (-&gt; strings
+       (strings-&gt;phalange acc-fn-char)
+       phalange-&gt;dactyl)))</pre></td></tr><tr><td class="docs"><p>If moving :right into a dactyl, we want to start at the beginning,
   but if moving :left, we need to start at the end.</p>
 
 <p>NB: not sure about naming of this function, or its parameters.
@@ -3210,7 +3218,7 @@ phalange instead.</p>
       go-start-of-buffer
       :up
       (#(apply str
-               (map (comp string first)
+               (map (comp string :val)
                     (butlast (:right %)))))))</pre></td></tr><tr><td class="docs"><h2>Combing</h2>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Comb a phalange - i.e. recalculate all the accumulators to its
   right.  This is required after any change (insertion, deletion)
@@ -3222,9 +3230,9 @@ an atom with the combed accumulator.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn comb 
   [phalange]
   (let [acc-fn (:acc-fn (meta phalange))
-        [[_ acc] :as rights] (:right phalange)]
+        [{acc :acc} :as rights] (:right phalange)]
     (-&gt;&gt; rights
-         (map first)
+         (map :val)
          (pair-reductions acc-fn acc)
          (assoc phalange :right))))</pre></td></tr><tr><td class="docs"><h2>Splitting</h2>
 
@@ -3237,13 +3245,13 @@ dactyl now at the beginning of a piece.)</p>
 </td><td class="codes"></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn split-phalange [phalange split-acc]
   (let [left (:left phalange)
-        [[[s from to] orig-acc] &amp; right] (:right phalange)
+        [{[s from to] :val, orig-acc :acc} &amp; right] (:right phalange)
         split-offset (:ppos split-acc)
         length (- to from)]
     (if (&lt; 0 split-offset length)
       (let [pivot (+ from split-offset)
-            prev [[s from pivot] orig-acc] 
-            next [[s pivot to] split-acc]] 
+            prev {:val [s from pivot], :acc orig-acc} 
+            next {:val [s pivot to], :acc split-acc}] 
         (-&gt; phalange
           (assoc :left  (conj left prev)
                  :right (conj right next))
@@ -3281,7 +3289,7 @@ to make sure both pointers are aware of each other's split.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn insert-pieces 
   [dactyl pieces]
   (let [acc (at-acc dactyl)
-        rights (pair pieces (repeat acc))]
+        rights (pair-keys [:val :acc] pieces (repeat acc))]
         ; we only actually need acc on the first piece, as the remainder
         ; will be comb'd out.
     (-&gt; dactyl
@@ -3298,17 +3306,16 @@ to make sure both pointers are aware of each other's split.</p>
 <p>TODO test</p>
 </td><td class="codes"><pre class="brush: clojure">(defn copy-pieces 
   [[pl pr]]
-  (let [target (first (:right pr))]
-    (map first 
+  (let [target (at pr)]
+    (map :val 
          (take-while (complement (partial identical? target))
                      (:right pl)))))</pre></td></tr><tr><td class="docs"><p>Deletes the span between the two phalanges</p>
 </td><td class="codes"><pre class="brush: clojure">(defn delete-between
   [[pl pr]]
   (let [acc (-&gt; (at-acc pl))
-                ;(assoc :ppos (:ppos (at-acc pr))))
-        [[piece _] &amp; rights] (:right pr)]
+        [{piece :val} &amp; rights] (:right pr)]
     (-&gt; pl
-        (assoc :right (cons [piece acc] rights))
+          (assoc :right (cons {:val piece, :acc acc} rights))
         comb)))</pre></td></tr><tr><td class="docs"><p>Delete the span created by the movement.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn delete
   [dactyl movement]
@@ -3327,10 +3334,113 @@ to make sure both pointers are aware of each other's split.</p>
   [[value info]]
   (if (= :end value)
       [[value (get info 0 {})]]
-      (pair (seq (string value))
-            (map #(get info % {}) (range)))))</pre></td></tr><tr><td class="docs">
+      (pair-keys [:val :meta]
+                 (seq (string value))
+                 (map #(get info % {}) (range)))))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(my-piece-&gt;seq my-piece)
-(my-piece-&gt;seq [:end {0 {:marks #{:end}}}])</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr></table><div class="footer">Generated by <a href="https://github.com/gdeer81/marginalia">Marginalia</a>.&nbsp;&nbsp;Syntax highlighting provided by Alex Gorbatchev's <a href="http://alexgorbatchev.com/SyntaxHighlighter/">SyntaxHighlighter</a><div id="floating-toc"><ul><li class="floating-toc-li" id="floating-toc_pterodactyl.core">pterodactyl.core</li><li class="floating-toc-li" id="floating-toc_pterodactyl.dactyl">pterodactyl.dactyl</li></ul></div></div><script type="text/javascript">SyntaxHighlighter.defaults['gutter'] = false;
+(my-piece-&gt;seq [:end {0 {:marks #{:end}}}])</pre></td></tr><tr><td class="docs"><h3>More pairing functions</h3>
+
+<p>instead of complecting my data structure of [value acc]
+into [[value data] acc], I think it makes more sense to have
+{:value :data :acc}.  At which point I need some new functions
+to map these than just a tuple pairing.</p>
+</td><td class="codes"></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(pair-keys [:a :b :c] [1 2 3] [4 5 6] [7 8 9])
+(pair-keys [:a :b :c :d] [1 2 3] [4 5 6] [7 8 9])
+(merge-pair-keys [{:a &quot;was&quot; :foo 1},{:a &quot;was&quot; :foo 2}, {:a &quot;was&quot; :foo 3}]
+                 [:a :b :c :d]
+                 [1 2 3]
+                 [4 5 6]
+                 [7 8 9])</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#pterodactyl.log" name="pterodactyl.log"><h1 class="project-name">pterodactyl.log</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><h1>Minimal logging library</h1>
+
+<p>Principles:</p>
+
+<ul>
+<li><p>https://12factor.net/logs</p>
+
+<ul><li>single appender, e.g. STDOUT</li></ul></li>
+<li><p>functions all the way down</p></li>
+<li><p>just Clojure data-structures</p></li>
+<li><p>trivial to create appenders
+(e.g. like Timbre docs claim it is)</p></li>
+<li><p>play nicely with pipeline style (like timbre's spy)</p></li>
+</ul>
+
+<p>Secondary concerns:</p>
+
+<ul>
+<li>compiling out hidden log-levels with macros</li>
+<li>tracing/line numbers and such</li>
+<li>dynamic reloading of config</li>
+</ul>
+
+<p>Explicitly NOT design concerns</p>
+
+<ul>
+<li>multiple appenders (just provide a map as your function)</li>
+<li>Java logging (your appender can interface if needed)</li>
+<li>writing to files (>> /var/log/foo.log)</li>
+<li>logrotation (logrotate.d)</li>
+<li>filtering (grep)</li>
+<li>complicated dispatch</li>
+</ul>
+</td><td class="codes"></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(ns pterodactyl.log
+  (:require [java-time :as dt]
+            [cheshire.core :as json])
+  (:gen-class))</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(def default-config
+  {:setup-config-fn
+    (fn [config]
+      (let [{:keys [:level :levels]} config]
+        (-&gt; config
+            (assoc :valid-levels
+                   (-&gt;&gt; levels
+                        (drop-while (complement (partial = level)))
+                        set)))))
+   :prepare-fn
+    (fn [config level data]
+      (let [data (if (map? data) data {:message data})
+            log-meta {:date ((:date-fn config))
+                      :level level}]
+        (merge log-meta data)))   
+   :log?-fn
+    (fn [config data]
+      (when (contains? (:valid-levels config) (:level data))
+            data))
+   :date-fn (comp dt/format dt/zoned-date-time)
+   :format-fn json/generate-string
+   :output-fn println
+   :level :info
+   :levels [:trace :debug :info :warn :error :fatal]})</pre></td></tr><tr><td class="docs"><p>but see http://yellerapp.com/posts/2014-12-11-14-race-condition-in-clojure-println.html</p>
+</td><td class="codes"></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defn make-logging-fn [config]
+  (let [c (-&gt;&gt; config
+               (merge default-config)
+               (#( (:setup-config-fn %) %)))
+               ;; ((juxt :setup-config-fn identity))
+               ;; seq
+               ;; eval)
+               ;; No matching ctor found for class clojure.core$comp$fn__4727
+        {:keys [:prepare-fn :format-fn :output-fn :log?-fn]} c]
+    (fn [level data]
+        (some-&gt;&gt; data
+                 (prepare-fn c level)
+                 (log?-fn c)
+                 format-fn
+                 output-fn))))</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(def log (make-logging-fn {}))</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(log :error &quot;hello there&quot;)</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defn spy-with [log transform level data]
+  (doto data
+    (-&gt;&gt; transform
+         (log level))))</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(def spy (partial spy-with log identity))</pre></td></tr><tr><td class="docs"><p>pipeline example</p>
+</td><td class="codes"><pre class="brush: clojure">(-&gt;&gt; 1
+     inc
+     (spy :info)
+     inc
+     (spy-with log (fn [n] {:number n}) :info))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr></table><div class="footer">Generated by <a href="https://github.com/gdeer81/marginalia">Marginalia</a>.&nbsp;&nbsp;Syntax highlighting provided by Alex Gorbatchev's <a href="http://alexgorbatchev.com/SyntaxHighlighter/">SyntaxHighlighter</a><div id="floating-toc"><ul><li class="floating-toc-li" id="floating-toc_pterodactyl.core">pterodactyl.core</li><li class="floating-toc-li" id="floating-toc_pterodactyl.dactyl">pterodactyl.dactyl</li><li class="floating-toc-li" id="floating-toc_pterodactyl.log">pterodactyl.log</li></ul></div></div><script type="text/javascript">SyntaxHighlighter.defaults['gutter'] = false;
 SyntaxHighlighter.all();
 
 // hackity hack
